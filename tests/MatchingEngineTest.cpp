@@ -63,10 +63,10 @@ TEST(MatchingEngineV1, OnlyOneMatchPerIncomingOrder) {
     engine.processOrder(Order{3, Side::BUY, 101, 20});
 
     ASSERT_EQ(engine.getBuyOrders().size(), 1U);
-    expectOrder(engine.getBuyOrders().front(), 3, Side::BUY, 101, 15);
+    expectOrder(engine.getBuyOrders().front(), 3, Side::BUY, 101, 13);
 
     ASSERT_EQ(engine.getSellOrders().size(), 1U);
-    expectOrder(engine.getSellOrders().front(), 2, Side::SELL, 99, 7);
+    expectOrder(engine.getSellOrders().front(), 1, Side::SELL, 100, 5);
 }
 
 TEST(MatchingEngineV1, SellSideMatchingRule_WorksSymmetrically) {
@@ -78,4 +78,60 @@ TEST(MatchingEngineV1, SellSideMatchingRule_WorksSymmetrically) {
     EXPECT_TRUE(engine.getSellOrders().empty());
     ASSERT_EQ(engine.getBuyOrders().size(), 1U);
     expectOrder(engine.getBuyOrders().front(), 1, Side::BUY, 100, 5);
+}
+
+TEST(MatchingEngineV2, BuySelectsLowestCompatibleSell) {
+    MatchingEngine engine({}, {});
+
+    engine.processOrder(Order{1, Side::SELL, 103, 10});
+    engine.processOrder(Order{2, Side::SELL, 101, 20});
+    engine.processOrder(Order{3, Side::SELL, 102, 15});
+
+    engine.processOrder(Order{4, Side::BUY, 102, 20});
+
+    EXPECT_TRUE(engine.getBuyOrders().empty());
+    ASSERT_EQ(engine.getSellOrders().size(), 2U);
+    expectOrder(engine.getSellOrders().at(0), 1, Side::SELL, 103, 10);
+    expectOrder(engine.getSellOrders().at(1), 3, Side::SELL, 102, 15);
+}
+
+TEST(MatchingEngineV2, SellSelectsHighestCompatibleBuy) {
+    MatchingEngine engine({}, {});
+
+    engine.processOrder(Order{1, Side::BUY, 97, 10});
+    engine.processOrder(Order{2, Side::BUY, 99, 20});
+    engine.processOrder(Order{3, Side::BUY, 98, 15});
+
+    engine.processOrder(Order{4, Side::SELL, 98, 12});
+
+    EXPECT_TRUE(engine.getSellOrders().empty());
+    ASSERT_EQ(engine.getBuyOrders().size(), 3U);
+    expectOrder(engine.getBuyOrders().at(0), 1, Side::BUY, 97, 10);
+    expectOrder(engine.getBuyOrders().at(1), 2, Side::BUY, 99, 8);
+    expectOrder(engine.getBuyOrders().at(2), 3, Side::BUY, 98, 15);
+}
+
+TEST(MatchingEngineV2, NoCompatibleSell_BuyRestsInBook) {
+    MatchingEngine engine({}, {});
+
+    engine.processOrder(Order{1, Side::SELL, 105, 7});
+    engine.processOrder(Order{2, Side::SELL, 106, 9});
+    engine.processOrder(Order{3, Side::BUY, 100, 4});
+
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    expectOrder(engine.getBuyOrders().front(), 3, Side::BUY, 100, 4);
+    ASSERT_EQ(engine.getSellOrders().size(), 2U);
+}
+
+TEST(MatchingEngineV2, EqualBestPriceUsesFirstSeenOrder) {
+    MatchingEngine engine({}, {});
+
+    engine.processOrder(Order{1, Side::SELL, 100, 5});
+    engine.processOrder(Order{2, Side::SELL, 100, 7});
+    engine.processOrder(Order{3, Side::BUY, 100, 6});
+
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    expectOrder(engine.getBuyOrders().front(), 3, Side::BUY, 100, 1);
+    ASSERT_EQ(engine.getSellOrders().size(), 1U);
+    expectOrder(engine.getSellOrders().front(), 2, Side::SELL, 100, 7);
 }

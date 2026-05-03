@@ -5,6 +5,7 @@
 #include "../include/MatchingEngine.h"
 
 #include <iostream>
+#include <limits>
 
 using namespace std;
 
@@ -16,14 +17,21 @@ MatchingEngine::MatchingEngine(vector<Order> buyOrders,
 void MatchingEngine::processOrder(Order newOrder) {
     cout << "Processing order:" << newOrder;
     if (newOrder.side == Side::BUY) {
-        // find first sell order that has price less than or equal to
-
+        // find best (lowest) sell order
+        int minPrice = numeric_limits<int>::max();
+        Order* minSellOrderPtr = nullptr;
         for (Order& o : this->sellOrders) {
-            if (o.price <= newOrder.price) { // match
-                cout << "Matched sell order: " << o << endl;
-                this->processMatchedOrders(newOrder, o);
-                break;
+            if (o.price <= newOrder.price and minPrice > o.price) { // match
+                minSellOrderPtr = &o;
+                minPrice = o.price;
             }
+        }
+
+        if (minSellOrderPtr != nullptr) {
+            cout << "Best matching order is: " << *minSellOrderPtr << endl;
+            this->processMatchedOrders(newOrder, *minSellOrderPtr);
+        } else {
+            cout << "No sell order was matched." << endl;
         }
 
         if (newOrder.quantity > 0) {
@@ -33,14 +41,21 @@ void MatchingEngine::processOrder(Order newOrder) {
         removeEmptyOrders(Side::SELL);
 
     } else {
-        // find first buy order that has price more than or equal to
-
+        // find best (highest) buy order
+        Order* maxBuyOrderPtr = nullptr;
+        int maxPrice = numeric_limits<int>::min();
         for (Order& o : this->buyOrders) {
-            if (o.price >= newOrder.price) { // match
-                cout << "Matched buy order: " << o << endl;
-                this->processMatchedOrders(newOrder, o);
-                break;
+            if (o.price >= newOrder.price and maxPrice < o.price) { // match
+                maxBuyOrderPtr = &o;
+                maxPrice = o.price;
             }
+        }
+
+        if (maxBuyOrderPtr != nullptr) {
+            cout << "Best matching order is: " << *maxBuyOrderPtr << endl;
+            this->processMatchedOrders(newOrder, *maxBuyOrderPtr);
+        } else {
+            cout << "No buy order was matched." << endl;
         }
 
         if (newOrder.quantity > 0) {
