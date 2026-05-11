@@ -8,6 +8,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(order_book_lib
     src/MatchingEngine.cpp
     src/Order.cpp
+        src/Trade.cpp
 )
 
 target_include_directories(order_book_lib

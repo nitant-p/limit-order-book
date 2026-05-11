@@ -2,12 +2,13 @@
 
 #include <vector>
 #include "Order.h"
+#include "Trade.h"
 
 class MatchingEngine {
 public:
     MatchingEngine(std::vector<Order> buyOrders, std::vector<Order> sellOrders);
 
-    void processOrder(Order newOrder);
+    std::vector<Trade> processOrder(Order newOrder);
     void printBook();
     const std::vector<Order>& getBuyOrders() const;
     const std::vector<Order>& getSellOrders() const;
@@ -15,7 +16,9 @@ public:
 private:
     std::vector<Order> buyOrders;
     std::vector<Order> sellOrders;
+    std::vector<Trade> tradeHistory;
 
     void removeEmptyOrders(Side side);
-    void processMatchedOrders(Order& order1, Order& order2);
+    Trade processMatchedOrders(Order& incomingOrder, Order& restingOrder, int buyId, int sellId);
+    void sortOrders(Side& side, bool isAscending);
 };
