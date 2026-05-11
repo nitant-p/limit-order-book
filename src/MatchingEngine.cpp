@@ -14,8 +14,10 @@ MatchingEngine::MatchingEngine(vector<Order> buyOrders,
     : buyOrders(buyOrders), sellOrders(sellOrders) {
 }
 
-vector<Trade> MatchingEngine::processOrder(Order newOrder) {
+vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
+    Order newOrder {this->getAndIncrementNextOrderId(), side, price, quantity};
     cout << "Processing order:" << newOrder;
+    
     vector<Trade> newOrderTradeList;
     if (newOrder.side == Side::BUY) {
         // sort sell orders by ascending, begin with lowest price matching
@@ -108,8 +110,8 @@ void MatchingEngine::removeEmptyOrders(Side side) {
 Trade MatchingEngine::processMatchedOrders(
     Order& incomingOrder,
     Order& restingOrder,
-    int buyId,
-    int sellId
+    uint64_t buyId,
+    uint64_t sellId
     ) {
     const int minQuantity = min(incomingOrder.quantity, restingOrder.quantity);
     cout << "Quantity traded: " << minQuantity << endl;
@@ -130,4 +132,8 @@ const vector<Order>& MatchingEngine::getBuyOrders() const {
 
 const vector<Order>& MatchingEngine::getSellOrders() const {
     return this->sellOrders;
+}
+
+uint64_t MatchingEngine::getAndIncrementNextOrderId() {
+    return this->nextOrderId++;
 }

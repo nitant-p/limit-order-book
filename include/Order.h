@@ -1,9 +1,10 @@
 #pragma once
+#include <cstdint>
 #include <ostream>
 enum class Side {BUY, SELL };
 
 struct Order {
-    int id;
+    uint64_t id;
     Side side;
     int price;
     int quantity;
