@@ -10,13 +10,15 @@ std::string sideToString(Side side) {
     return side == Side::BUY ? "BUY" : "SELL";
 }
 
-// sort by ascending price
+// sort by ascending price, id for tie-breaker
 bool AscendingPrice::operator()(const Order &order1, const Order &order2) {
+    if (order1.price == order2.price) return order1.id < order2.id;
     return order1.price < order2.price;
 }
 
-// sort by descending price
+// sort by descending price, id for tie-breaker
 bool DescendingPrice::operator()(const Order &order1, const Order &order2) {
+    if (order1.price == order2.price) return order1.id < order2.id;
     return order1.price > order2.price;
 }
 
