@@ -39,16 +39,28 @@ if(BUILD_TESTING)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
-    add_executable(matching_engine_tests
-        tests/MatchingEngineTest.cpp
+#    add_executable(matching_engine_tests
+#        tests/MatchingEngineTest.cpp
+#    )
+#
+#    target_link_libraries(matching_engine_tests
+#        PRIVATE
+#            order_book_lib
+#            GTest::gtest_main
+#    )
+
+    include(GoogleTest)
+#    gtest_discover_tests(matching_engine_tests)
+
+    add_executable(matching_engine_v5_tests
+        tests/MatchingEngineV5Test.cpp
     )
 
-    target_link_libraries(matching_engine_tests
+    target_link_libraries(matching_engine_v5_tests
         PRIVATE
             order_book_lib
             GTest::gtest_main
     )
 
-    include(GoogleTest)
-    gtest_discover_tests(matching_engine_tests)
+    gtest_discover_tests(matching_engine_v5_tests)
 endif()
