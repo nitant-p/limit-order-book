@@ -41,7 +41,7 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
             }
         }
 
-        if (newOrder.quantity > 0) this->buyOrders[newOrder.price].push_back(newOrder);
+        if (newOrder.quantity > 0) this->addNewOrder(Side::BUY, newOrder);
 
     } else {
 
@@ -65,8 +65,7 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
             }
         }
 
-        if (newOrder.quantity > 0) this->sellOrders[newOrder.price].push_back(newOrder);
-
+        if (newOrder.quantity > 0) this->addNewOrder(Side::SELL, newOrder);
     }
 
     return newOrderTradeList;
@@ -137,6 +136,32 @@ Trade MatchingEngine::processMatchedOrders(
     return t;
 }
 
+void MatchingEngine::cancelOrder(uint64_t cancelId) {
+    Order& order = this->idToOrderMap[cancelId];
+    int price = order.price;
+
+    deque<Order>* orderQueuePtr = nullptr;
+
+    if (this->buyOrders.contains(price)) {
+        orderQueuePtr = &this->buyOrders[price];
+    } else if (this->sellOrders.contains(price)) {
+        orderQueuePtr = &this->sellOrders[price];
+    }
+
+    if (orderQueuePtr != nullptr and !orderQueuePtr->empty()) {
+        for (auto it = orderQueuePtr->begin(); it < orderQueuePtr->end();) {
+            if (it->id == cancelId) {
+                it = orderQueuePtr->erase(it);
+            }
+            else {
+                ++it;
+            }
+        }
+        if (orderQueuePtr->empty())
+    }
+}
+
+
 const map<int, deque<Order>, std::greater<int>>& MatchingEngine::getBuyOrders() const {
     return this->buyOrders;
 }
@@ -167,4 +192,14 @@ void MatchingEngine::removeEmptyOrderQueuesByPrice(map<int, deque<Order>>& map, 
 
 bool MatchingEngine::canOrderPricesMatch(const int buyOrderPrice, const int sellOrderPrice) {
     return buyOrderPrice >= sellOrderPrice;
+}
+
+void MatchingEngine::addNewOrder(Side side, Order& newOrder) {
+    if (side == Side::BUY) {
+        this->buyOrders[newOrder.price].push_back(newOrder);
+    } else {
+        this->buyOrders[newOrder.price].push_back(newOrder);
+    }
+
+    this->idToOrderMap[newOrder.id] = newOrder;
 }
