@@ -9,7 +9,7 @@
 
 using namespace std;
 
-MatchingEngine::MatchingEngine(map<int, deque<Order>> buyOrders,
+MatchingEngine::MatchingEngine(map<int, deque<Order>, greater<int>> buyOrders,
                                map<int, deque<Order>> sellOrders)
     : buyOrders(buyOrders), sellOrders(sellOrders) {
 }
@@ -24,7 +24,7 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
         auto it = this->sellOrders.begin();
         auto endIt = this->sellOrders.end();
 
-        while (newOrder.quantity > 0 and it != endIt and newOrder.price >= it->first) {
+        while (newOrder.quantity > 0 and it != endIt and canOrderPricesMatch(newOrder.price, it->first)) {
             deque<Order>& orderQueue = it->second;
             while (newOrder.quantity > 0 and !orderQueue.empty()) {
                 Order& currSellOrder = orderQueue.front();
@@ -32,7 +32,12 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
                 Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
                 newOrderTradeList.push_back(t);
                 this->removeEmptyOrdersFromQueue(orderQueue);
-                this->removeEmptyOrderQueuesByPrice(this->sellOrders, it->first);
+            }
+
+            if (orderQueue.empty()) {
+                it = this->sellOrders.erase(it);
+            } else {
+                ++it;
             }
         }
 
@@ -43,7 +48,7 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
         auto it = this->buyOrders.begin();
         auto endIt = this->buyOrders.end();
 
-        while (newOrder.quantity > 0 and it != endIt and it->first >= newOrder.price) {
+        while (newOrder.quantity > 0 and it != endIt and canOrderPricesMatch(it->first, newOrder.price)) {
             deque<Order>& orderQueue = it->second;
             while (newOrder.quantity > 0 and !orderQueue.empty()) {
                 Order& currBuyOrder = orderQueue.front();
@@ -51,9 +56,13 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
                 Trade t = this->processMatchedOrders(newOrder, currBuyOrder, newOrder.id, currBuyOrder.id);
                 newOrderTradeList.push_back(t);
                 this->removeEmptyOrdersFromQueue(orderQueue);
-                this->removeEmptyOrderQueuesByPrice(this->buyOrders, it->first);
             }
 
+            if (orderQueue.empty()) {
+                it = this->buyOrders.erase(it);
+            } else {
+                ++it;
+            }
         }
 
         if (newOrder.quantity > 0) this->sellOrders[newOrder.price].push_back(newOrder);
@@ -68,8 +77,10 @@ void MatchingEngine::printBook() {
         cout << "There are no buy orders left." << endl;
     } else {
         cout << "These are the following buy orders:" << endl;
-        for (auto o : this->buyOrders) {
-            cout << o << endl;
+        for (auto it = this->buyOrders.begin(); it != buyOrders.begin(); ++it) {
+            for (auto o : it->second) {
+                cout << o << endl;
+            }
         }
     }
 
@@ -77,8 +88,10 @@ void MatchingEngine::printBook() {
         cout << "There are no sell orders left." << endl;
     } else {
         cout << "These are the following sell orders:" << endl;
-        for (auto o : this->sellOrders) {
-            cout << o << endl;
+        for (auto it = this->sellOrders.begin(); it != sellOrders.begin(); ++it) {
+            for (auto o : it->second) {
+                cout << o << endl;
+            }
         }
     }
 
@@ -124,11 +137,11 @@ Trade MatchingEngine::processMatchedOrders(
     return t;
 }
 
-const vector<Order>& MatchingEngine::getBuyOrders() const {
+const map<int, deque<Order>, std::greater<int>>& MatchingEngine::getBuyOrders() const {
     return this->buyOrders;
 }
 
-const vector<Order>& MatchingEngine::getSellOrders() const {
+const map<int, deque<Order>>& MatchingEngine::getSellOrders() const {
     return this->sellOrders;
 }
 
@@ -136,7 +149,7 @@ uint64_t MatchingEngine::getAndIncrementNextOrderId() {
     return this->nextOrderId++;
 }
 
-void removeEmptyOrdersFromQueue(deque<Order>& orderQueue) {
+void MatchingEngine::removeEmptyOrdersFromQueue(deque<Order>& orderQueue) {
     while (!orderQueue.empty()) {
         if (orderQueue.front().quantity == 0) {
             orderQueue.pop_front();
@@ -146,8 +159,12 @@ void removeEmptyOrdersFromQueue(deque<Order>& orderQueue) {
     }
 }
 
-void removeEmptyOrderQueuesByPrice(map<int, deque<Order>>& map, int price) {
+void MatchingEngine::removeEmptyOrderQueuesByPrice(map<int, deque<Order>>& map, int price) {
     if (map.count(price) and map[price].empty()) {
         map.erase(price);
     }
+}
+
+bool MatchingEngine::canOrderPricesMatch(const int buyOrderPrice, const int sellOrderPrice) {
+    return buyOrderPrice >= sellOrderPrice;
 }

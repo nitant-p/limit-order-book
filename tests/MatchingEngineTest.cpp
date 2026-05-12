@@ -1,6 +1,9 @@
 #include "MatchingEngine.h"
 
 #include <gtest/gtest.h>
+#include <deque>
+#include <functional>
+#include <map>
 
 namespace {
 
