@@ -32,6 +32,7 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
                 Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
                 newOrderTradeList.push_back(t);
                 this->removeEmptyOrdersFromQueue(orderQueue);
+                this->removeEmptyOrderQueuesByPrice(this->sellOrders, it->first);
             }
         }
 
@@ -50,6 +51,7 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
                 Trade t = this->processMatchedOrders(newOrder, currBuyOrder, newOrder.id, currBuyOrder.id);
                 newOrderTradeList.push_back(t);
                 this->removeEmptyOrdersFromQueue(orderQueue);
+                this->removeEmptyOrderQueuesByPrice(this->buyOrders, it->first);
             }
 
         }
@@ -145,5 +147,7 @@ void removeEmptyOrdersFromQueue(deque<Order>& orderQueue) {
 }
 
 void removeEmptyOrderQueuesByPrice(map<int, deque<Order>>& map, int price) {
-    if (thi)
+    if (map.count(price) and map[price].empty()) {
+        map.erase(price);
+    }
 }
