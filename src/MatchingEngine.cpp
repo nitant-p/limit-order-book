@@ -17,13 +17,9 @@ MatchingEngine::MatchingEngine(map<int, deque<uint64_t>> buyOrders,
 vector<Trade> MatchingEngine::processOrder(Side side, Type type, int price, int quantity) {
     Order newOrder {this->getAndIncrementNextOrderId(), side, type, price, quantity};
     cout << "Processing order:" << newOrder << endl;
-    
-    vector<Trade> newOrderTradeList;
-    newOrder.type == Type::LIMIT
-        ? this->processLimitOrder(newOrder, newOrderTradeList)
-        : this->processMarketOrder(newOrder, newOrderTradeList);
 
-    return newOrderTradeList;
+    if (newOrder.side == Side::BUY) return this->processBuyOrder(newOrder);
+    return this->processSellOrder(newOrder);
 }
 
 void MatchingEngine::printBook() {
@@ -144,10 +140,6 @@ void MatchingEngine::removeEmptyOrderQueuesByPrice(map<int, deque<uint64_t>>& ma
     }
 }
 
-bool MatchingEngine::canOrderPricesMatch(const int buyOrderPrice, const int sellOrderPrice) {
-    return buyOrderPrice >= sellOrderPrice;
-}
-
 void MatchingEngine::addNewOrder(Side side, Order& newOrder) {
     uint64_t id = newOrder.id;
     this->idToOrderMap[id] = newOrder;
@@ -158,103 +150,65 @@ void MatchingEngine::addNewOrder(Side side, Order& newOrder) {
     }
 }
 
-vector<Trade> MatchingEngine::processLimitOrder(Order &newOrder, vector<Trade>& tradeList) {
-    cout << "Limit order" << endl;
-    if (newOrder.side == Side::BUY) {
-        auto it = this->sellOrders.begin();
-        auto endIt = this->sellOrders.end();
 
-        while (newOrder.quantity > 0 and it != endIt and canOrderPricesMatch(newOrder.price, it->first)) {
-            deque<uint64_t>& sellQueue = it->second;
-            while (newOrder.quantity > 0 and !sellQueue.empty()) {
-                uint64_t id = sellQueue.front();
-                Order& currSellOrder = this->idToOrderMap[id];
-                cout << "Matched with sell order: " << currSellOrder << endl;
-                Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
-                tradeList.push_back(t);
+bool MatchingEngine::canContinueAgainstPrice(const Order& incoming, int opposingPrice) {
+    if (incoming.type == Type::MARKET) return true;
+    if (incoming.side == Side::BUY) return incoming.price >= opposingPrice;
+    return incoming.price <= opposingPrice;
+}
 
-                if (currSellOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, sellQueue);
-            }
+vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
+    vector<Trade> tradeList;
 
-            if (sellQueue.empty()) {
-                it = this->sellOrders.erase(it);
-            } else {
-                ++it;
-            }
+    auto it = this->sellOrders.begin();
+    auto endIt = this->sellOrders.end();
+
+    while (newOrder.quantity > 0 and it != endIt and canContinueAgainstPrice(newOrder, it->first)) {
+        deque<uint64_t>& sellQueue = it->second;
+        while (newOrder.quantity > 0 and !sellQueue.empty()) {
+            uint64_t id = sellQueue.front();
+            Order& currSellOrder = this->idToOrderMap[id];
+            cout << "Matched with sell order: " << currSellOrder << endl;
+            Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
+            tradeList.push_back(t);
+
+            if (currSellOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, sellQueue);
         }
 
-        if (newOrder.quantity > 0) this->addNewOrder(Side::BUY, newOrder);
-
-    } else {
-        // iterate backwards for highest price first
-        while (newOrder.quantity > 0 and !this->buyOrders.empty()) {
-            int bestBuyPrice = std::prev(this->buyOrders.end())->first;
-            if (!canOrderPricesMatch(bestBuyPrice, newOrder.price)) break;
-
-            deque<uint64_t>& buyQueue = this->buyOrders[bestBuyPrice];
-            while (newOrder.quantity > 0 and !buyQueue.empty()) {
-                uint64_t id = buyQueue.front();
-                Order& currBuyOrder = this->idToOrderMap[id];
-                cout << "Matched with buy order: " << currBuyOrder << endl;
-                Trade t = this->processMatchedOrders(newOrder, currBuyOrder,  currBuyOrder.id, newOrder.id);
-                tradeList.push_back(t);
-
-                if (currBuyOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, buyQueue);
-            }
-
-            if (buyQueue.empty()) this->buyOrders.erase(bestBuyPrice);
+        if (sellQueue.empty()) {
+            it = this->sellOrders.erase(it);
+        } else {
+            ++it;
         }
-
-        if (newOrder.quantity > 0) this->addNewOrder(Side::SELL, newOrder);
     }
+
+    if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::BUY, newOrder);
 
     return tradeList;
 }
 
-vector<Trade> MatchingEngine::processMarketOrder(Order &newOrder, vector<Trade>& tradeList) {
-    cout << "Market order" << endl;
-    if (newOrder.side == Side::BUY) {
-        auto it = this->sellOrders.begin();
-        auto endIt = this->sellOrders.end();
+vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
+    vector<Trade> tradeList;
+    // iterate backwards for highest price first
+    while (newOrder.quantity > 0 and !this->buyOrders.empty()) {
+        int bestBuyPrice = std::prev(this->buyOrders.end())->first;
+        if (!canContinueAgainstPrice(newOrder, bestBuyPrice)) break;
 
-        while (newOrder.quantity > 0 and it != endIt) {
-            deque<uint64_t>& sellQueue = it->second;
-            while (newOrder.quantity > 0 and !sellQueue.empty()) {
-                uint64_t id = sellQueue.front();
-                Order& currSellOrder = this->idToOrderMap[id];
-                cout << "Matched with sell order: " << currSellOrder << endl;
-                Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
-                tradeList.push_back(t);
+        deque<uint64_t>& buyQueue = this->buyOrders[bestBuyPrice];
+        while (newOrder.quantity > 0 and !buyQueue.empty()) {
+            uint64_t id = buyQueue.front();
+            Order& currBuyOrder = this->idToOrderMap[id];
+            cout << "Matched with buy order: " << currBuyOrder << endl;
+            Trade t = this->processMatchedOrders(newOrder, currBuyOrder,  currBuyOrder.id, newOrder.id);
+            tradeList.push_back(t);
 
-                if (currSellOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, sellQueue);
-            }
-
-            if (sellQueue.empty()) {
-                it = this->sellOrders.erase(it);
-            } else {
-                ++it;
-            }
+            if (currBuyOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, buyQueue);
         }
-    } else {
-        // iterate backwards for highest price first
-        while (newOrder.quantity > 0 and !this->buyOrders.empty()) {
-            int bestBuyPrice = std::prev(this->buyOrders.end())->first;
 
-            deque<uint64_t>& buyQueue = this->buyOrders[bestBuyPrice];
-            while (newOrder.quantity > 0 and !buyQueue.empty()) {
-                uint64_t id = buyQueue.front();
-                Order& currBuyOrder = this->idToOrderMap[id];
-                cout << "Matched with buy order: " << currBuyOrder << endl;
-                Trade t = this->processMatchedOrders(newOrder, currBuyOrder,  currBuyOrder.id, newOrder.id);
-                tradeList.push_back(t);
-
-                if (currBuyOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, buyQueue);
-            }
-
-            if (buyQueue.empty()) this->buyOrders.erase(bestBuyPrice);
-        }
+        if (buyQueue.empty()) this->buyOrders.erase(bestBuyPrice);
     }
 
-    // DO NOT ADD MARKET ORDERS TO BOOKS
+    if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::SELL, newOrder);
+
     return tradeList;
 }
