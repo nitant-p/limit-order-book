@@ -10,6 +10,10 @@ std::string sideToString(Side side) {
     return side == Side::BUY ? "BUY" : "SELL";
 }
 
+std::string typeToString(Type type) {
+    return type == Type::LIMIT ? "LIMIT" : "MARKET";
+}
+
 // sort by ascending price, id for tie-breaker
 bool AscendingPrice::operator()(const Order &order1, const Order &order2) {
     if (order1.price == order2.price) return order1.id < order2.id;
@@ -25,6 +29,7 @@ bool DescendingPrice::operator()(const Order &order1, const Order &order2) {
 std::ostream& operator<<(std::ostream& os, const Order& order) {
     os << "Order{id=" << order.id
        << ", side=" << sideToString(order.side)
+       << ", type=" << typeToString(order.type)
        << ", price=" << order.price
        << ", quantity=" << order.quantity
        << "}";

@@ -1,11 +1,13 @@
 #pragma once
 #include <cstdint>
 #include <ostream>
-enum class Side {BUY, SELL };
+enum class Side {BUY, SELL};
+enum class Type {LIMIT, MARKET};
 
 struct Order {
     uint64_t id;
     Side side;
+    Type type;
     int price;
     int quantity;
 };

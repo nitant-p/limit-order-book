@@ -11,7 +11,10 @@ class MatchingEngine {
 public:
     MatchingEngine(std::map<int, std::deque<uint64_t>> buyOrders, std::map<int, std::deque<uint64_t>> sellOrders);
 
-    std::vector<Trade> processOrder(Side side, int price, int quantity);
+    std::vector<Trade> processLimitOrder(Order & order, std::vector<Trade>& tradeList);
+    std::vector<Trade> processMarketOrder(Order & order, std::vector<Trade>& tradeList);
+
+    std::vector<Trade> processOrder(Side side, Type type, int price, int quantity);
     void printBook();
     const std::map<int, std::deque<uint64_t>>& getBuyOrders() const;
     const std::map<int, std::deque<uint64_t>>& getSellOrders() const;

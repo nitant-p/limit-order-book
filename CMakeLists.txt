@@ -86,12 +86,24 @@ if(BUILD_TESTING)
 
     gtest_discover_tests(matching_engine_v6_tests)
 
+    add_executable(matching_engine_v7_tests
+        tests/MatchingEngineV7Test.cpp
+    )
+
+    target_link_libraries(matching_engine_v7_tests
+        PRIVATE
+            order_book_lib
+            GTest::gtest_main
+    )
+
+    gtest_discover_tests(matching_engine_v7_tests)
+
     if(ENABLE_COVERAGE)
         add_custom_target(coverage
             COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
             COMMAND ${CMAKE_SOURCE_DIR}/scripts/generate_coverage.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            DEPENDS matching_engine_v5_tests matching_engine_v6_tests
+            DEPENDS matching_engine_v5_tests matching_engine_v6_tests matching_engine_v7_tests
             COMMENT "Run tests and generate gcov coverage artifacts under build/coverage"
         )
     endif()

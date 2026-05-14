@@ -20,9 +20,9 @@ const std::deque<uint64_t>& levelAt(const std::map<int, std::deque<uint64_t>, Co
 TEST(MatchingEngineV5, SellSideStoresOrderIdsByPriceLevelFIFO) {
     MatchingEngine engine({}, {});
 
-    engine.processOrder(Side::SELL, 101, 5); // id 1
-    engine.processOrder(Side::SELL, 101, 7); // id 2
-    engine.processOrder(Side::SELL, 102, 3); // id 3
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 5); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 7); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 102, 3); // id 3
 
     const auto& sells = engine.getSellOrders();
     ASSERT_EQ(sells.size(), 2U);
@@ -37,9 +37,9 @@ TEST(MatchingEngineV5, SellSideStoresOrderIdsByPriceLevelFIFO) {
 TEST(MatchingEngineV5, BuySideStoresOrderIdsByPriceLevelFIFO) {
     MatchingEngine engine({}, {});
 
-    engine.processOrder(Side::BUY, 100, 4); // id 1
-    engine.processOrder(Side::BUY, 100, 6); // id 2
-    engine.processOrder(Side::BUY, 99, 2);  // id 3
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 4); // id 1
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 6); // id 2
+    engine.processOrder(Side::BUY, Type::LIMIT, 99, 2);  // id 3
 
     const auto& buys = engine.getBuyOrders();
     ASSERT_EQ(buys.size(), 2U);
@@ -54,11 +54,11 @@ TEST(MatchingEngineV5, BuySideStoresOrderIdsByPriceLevelFIFO) {
 TEST(MatchingEngineV5, BuyOrderMatchesLowestAskPriceFirst) {
     MatchingEngine engine({}, {});
 
-    engine.processOrder(Side::SELL, 103, 5); // id 1
-    engine.processOrder(Side::SELL, 101, 6); // id 2
-    engine.processOrder(Side::SELL, 102, 7); // id 3
+    engine.processOrder(Side::SELL, Type::LIMIT, 103, 5); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 6); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 102, 7); // id 3
 
-    const std::vector<Trade> trades = engine.processOrder(Side::BUY, 103, 4); // id 4
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 103, 4); // id 4
 
     ASSERT_EQ(trades.size(), 1U);
     EXPECT_EQ(trades.at(0).buyOrderId, 4U);
@@ -74,11 +74,11 @@ TEST(MatchingEngineV5, BuyOrderMatchesLowestAskPriceFirst) {
 TEST(MatchingEngineV5, SellOrderMatchesHighestBidPriceFirst) {
     MatchingEngine engine({}, {});
 
-    engine.processOrder(Side::BUY, 99, 5);  // id 1
-    engine.processOrder(Side::BUY, 101, 6); // id 2
-    engine.processOrder(Side::BUY, 100, 7); // id 3
+    engine.processOrder(Side::BUY, Type::LIMIT, 99, 5);  // id 1
+    engine.processOrder(Side::BUY, Type::LIMIT, 101, 6); // id 2
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 7); // id 3
 
-    const std::vector<Trade> trades = engine.processOrder(Side::SELL, 99, 4); // id 4
+    const std::vector<Trade> trades = engine.processOrder(Side::SELL, Type::LIMIT, 99, 4); // id 4
 
     ASSERT_EQ(trades.size(), 1U);
     EXPECT_EQ(trades.at(0).buyOrderId, 2U);
@@ -95,8 +95,8 @@ TEST(MatchingEngineV5, SellOrderMatchesHighestBidPriceFirst) {
 TEST(MatchingEngineV5, EmptyPriceLevelIsRemovedAfterDepletion) {
     MatchingEngine engine({}, {});
 
-    engine.processOrder(Side::SELL, 100, 5); // id 1
-    const std::vector<Trade> trades = engine.processOrder(Side::BUY, 100, 5); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 5); // id 1
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 2
 
     ASSERT_EQ(trades.size(), 1U);
     EXPECT_TRUE(engine.getSellOrders().empty());
@@ -105,11 +105,11 @@ TEST(MatchingEngineV5, EmptyPriceLevelIsRemovedAfterDepletion) {
 TEST(MatchingEngineV5, MultiLevelMatchMaintainsPriceTimeSemantics) {
     MatchingEngine engine({}, {});
 
-    engine.processOrder(Side::SELL, 100, 3); // id 1
-    engine.processOrder(Side::SELL, 100, 4); // id 2
-    engine.processOrder(Side::SELL, 101, 5); // id 3
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 3); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 4); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 5); // id 3
 
-    const std::vector<Trade> trades = engine.processOrder(Side::BUY, 101, 9); // id 4
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 101, 9); // id 4
 
     ASSERT_EQ(trades.size(), 3U);
     EXPECT_EQ(trades.at(0).sellOrderId, 1U);
