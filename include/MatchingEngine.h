@@ -15,13 +15,13 @@ public:
     void printBook();
     const std::map<int, std::deque<uint64_t>>& getBuyOrders() const;
     const std::map<int, std::deque<uint64_t>>& getSellOrders() const;
-    void cancelOrder(uint64_t cancelId);
+    bool cancelOrder(uint64_t cancelId);
 
 private:
     uint64_t nextOrderId {1};
-    std::unordered_map<uint64_t, Order&> idToOrderMap;
-    std::map<int, deque<uint64_t>> buyOrders;
-    std::map<int, deque<uint64_t>> sellOrders;
+    std::unordered_map<uint64_t, Order> idToOrderMap;
+    std::map<int, std::deque<uint64_t>> buyOrders;
+    std::map<int, std::deque<uint64_t>> sellOrders;
     std::vector<Trade> tradeHistory;
     
 

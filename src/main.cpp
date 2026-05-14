@@ -3,8 +3,8 @@
 #include <vector>
 
 int main() {
-    std::map<int, std::deque<Order>, std::greater<int>> buyOrders;
-    std::map<int, std::deque<Order>> sellOrders;
+    std::map<int, std::deque<uint64_t>> buyOrders;
+    std::map<int, std::deque<uint64_t>> sellOrders;
 
     MatchingEngine engine(buyOrders, sellOrders);
 

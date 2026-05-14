@@ -16,7 +16,7 @@ MatchingEngine::MatchingEngine(map<int, deque<uint64_t>> buyOrders,
 
 vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
     Order newOrder {this->getAndIncrementNextOrderId(), side, price, quantity};
-    cout << "Processing order:" << newOrder;
+    cout << "Processing order:" << newOrder << endl;
     
     vector<Trade> newOrderTradeList;
     if (newOrder.side == Side::BUY) {
@@ -25,18 +25,18 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
         auto endIt = this->sellOrders.end();
 
         while (newOrder.quantity > 0 and it != endIt and canOrderPricesMatch(newOrder.price, it->first)) {
-            deque<uint64_t>& orderIdQueue = it->second;
-            while (newOrder.quantity > 0 and !orderIdQueue.empty()) {
-                uint64_t id = orderIdQueue.front();
+            deque<uint64_t>& sellQueue = it->second;
+            while (newOrder.quantity > 0 and !sellQueue.empty()) {
+                uint64_t id = sellQueue.front();
                 Order& currSellOrder = this->idToOrderMap[id];
                 cout << "Matched with sell order: " << currSellOrder << endl;
                 Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
                 newOrderTradeList.push_back(t);
                 
-                if (currSellOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, orderIdQueue);
+                if (currSellOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, sellQueue);
             }
 
-            if (orderIdQueue.empty()) {
+            if (sellQueue.empty()) {
                 it = this->sellOrders.erase(it);
             } else {
                 ++it;
@@ -47,24 +47,22 @@ vector<Trade> MatchingEngine::processOrder(Side side, int price, int quantity) {
 
     } else {
         // iterate backwards for highest price first
-        auto endIt = this->buyOrders.end();
-        auto startIt = this->buyOrders.begin();
+        while (newOrder.quantity > 0 and !this->buyOrders.empty()) {
+            int bestBuyPrice = std::prev(this->buyOrders.end())->first;
+            if (!canOrderPricesMatch(bestBuyPrice, newOrder.price)) break;
 
-        while (newOrder.quantity > 0 and startIt != startIt and canOrderPricesMatch(endIt->first, newOrder.price)) {
-            --endIt;
-            deque<uint64_t>& orderIdQueue = endIt->second;
-            while (newOrder.quantity > 0 and !orderIdQueue.empty()) {
-                uint64_t id = orderIdQueue.front();
+            deque<uint64_t>& buyQueue = this->buyOrders[bestBuyPrice];
+            while (newOrder.quantity > 0 and !buyQueue.empty()) {
+                uint64_t id = buyQueue.front();
                 Order& currBuyOrder = this->idToOrderMap[id];
                 cout << "Matched with buy order: " << currBuyOrder << endl;
-                Trade t = this->processMatchedOrders(newOrder, currBuyOrder, newOrder.id, currBuyOrder.id);
+                Trade t = this->processMatchedOrders(newOrder, currBuyOrder,  currBuyOrder.id, newOrder.id);
                 newOrderTradeList.push_back(t);
-                this->deleteEmptyOrderInOrder(id, orderIdQueue);
+
+                if (currBuyOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, buyQueue);
             }
 
-            if (orderIdQueue.empty()) {
-                endIt = this->buyOrders.erase(endIt);
-            }
+            if (buyQueue.empty()) this->buyOrders.erase(bestBuyPrice);
         }
 
         if (newOrder.quantity > 0) this->addNewOrder(Side::SELL, newOrder);
@@ -138,8 +136,8 @@ Trade MatchingEngine::processMatchedOrders(
     return t;
 }
 
-void MatchingEngine::cancelOrder(uint64_t id) {
-    if (!this-idToOrderMap.contains(id)) return;
+bool MatchingEngine::cancelOrder(uint64_t id) {
+    if (!this->idToOrderMap.contains(id)) return false;
 
     Order& order = this->idToOrderMap[id];
     Side side = order.side;
@@ -158,8 +156,13 @@ void MatchingEngine::cancelOrder(uint64_t id) {
         }
     }
 
-    if (queue.empty()) 
+    if (queue.empty()) {
+        side == Side::BUY
+        ? this->buyOrders.erase(price)
+        : this->sellOrders.erase(price);
+    }
 
+    return true;
 }
 
 
