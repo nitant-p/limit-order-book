@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 option(ENABLE_COVERAGE "Enable gcov coverage instrumentation" OFF)
+option(ENABLE_PHASE2_ORDER_BOOK_SIDE_TESTS "Enable Phase 2 OrderBookSide API contract tests" OFF)
 
 if(ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
@@ -16,9 +17,10 @@ if(ENABLE_COVERAGE)
 endif()
 
 add_library(order_book_lib
-    src/MatchingEngine.cpp
-    src/Order.cpp
+        src/MatchingEngine.cpp
+        src/Order.cpp
         src/Trade.cpp
+        src/OrderBookSide.cpp
 )
 
 target_include_directories(order_book_lib
@@ -65,6 +67,20 @@ if(BUILD_TESTING)
     )
 
     gtest_discover_tests(matching_engine_tests)
+
+    if(ENABLE_PHASE2_ORDER_BOOK_SIDE_TESTS)
+        add_executable(order_book_side_tests
+            tests/OrderBookSideTest.cpp
+        )
+
+        target_link_libraries(order_book_side_tests
+            PRIVATE
+                order_book_lib
+                GTest::gtest_main
+        )
+
+        gtest_discover_tests(order_book_side_tests)
+    endif()
 
     if(ENABLE_COVERAGE)
         add_custom_target(coverage

@@ -1,4 +1,4 @@
-# Order Book (C++)
+# Limit Order Book (C++)
 [![CI](https://github.com/nitant-p/order-book/actions/workflows/ci.yml/badge.svg)](https://github.com/nitant-p/order-book/actions/workflows/ci.yml)
 [![Coverage](https://github.com/nitant-p/order-book/actions/workflows/coverage.yml/badge.svg)](https://github.com/nitant-p/order-book/actions/workflows/coverage.yml)
 
