@@ -16,6 +16,7 @@ public:
     const std::map<int, std::deque<uint64_t>>& getBuyOrders() const;
     const std::map<int, std::deque<uint64_t>>& getSellOrders() const;
     bool cancelOrder(uint64_t cancelId);
+    bool modifyOrder(uint64_t orderId, int newPrice, int newQuantity);
 
 private:
     uint64_t nextOrderId {1};
@@ -35,4 +36,9 @@ private:
 
     std::vector<Trade> processBuyOrder(Order &newOrder);
     std::vector<Trade> processSellOrder(Order &newOrder);
+
+    Order* getOrderById(uint64_t orderId);
+    std::deque<uint64_t>* getOrderQueueByOrderId(uint64_t orderId);
+
+    void saveOrderToBook(const Order& order);
 };
