@@ -1,0 +1,132 @@
+#include "MatchingEngine.h"
+
+#include <gtest/gtest.h>
+
+#include <cstdint>
+#include <deque>
+#include <map>
+#include <vector>
+
+namespace {
+
+template <typename Comparator>
+const std::deque<uint64_t>& levelAt(const std::map<int, std::deque<uint64_t>, Comparator>& levels, int price) {
+    const auto it = levels.find(price);
+    EXPECT_NE(it, levels.end());
+    return it->second;
+}
+
+class BestMatchingBySideTest : public ::testing::Test {
+protected:
+    MatchingEngine engine{{}, {}};
+};
+
+} // namespace
+
+TEST_F(BestMatchingBySideTest, BuyLimitMatchesLowestAskPriceFirst) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 103, 5); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 6); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 102, 7); // id 3
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 103, 4); // id 4
+
+    ASSERT_EQ(trades.size(), 1U);
+    EXPECT_EQ(trades.at(0).buyOrderId, 4U);
+    EXPECT_EQ(trades.at(0).sellOrderId, 2U);
+    EXPECT_EQ(trades.at(0).executionPrice, 101);
+    EXPECT_EQ(trades.at(0).executionQuantity, 4);
+
+    ASSERT_EQ(levelAt(engine.getSellOrders(), 101).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getSellOrders(), 101).front(), 2U);
+}
+
+TEST_F(BestMatchingBySideTest, SellLimitMatchesHighestBidPriceFirst) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 99, 5);  // id 1
+    engine.processOrder(Side::BUY, Type::LIMIT, 101, 6); // id 2
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 7); // id 3
+
+    const std::vector<Trade> trades = engine.processOrder(Side::SELL, Type::LIMIT, 99, 4); // id 4
+
+    ASSERT_EQ(trades.size(), 1U);
+    EXPECT_EQ(trades.at(0).buyOrderId, 2U);
+    EXPECT_EQ(trades.at(0).sellOrderId, 4U);
+    EXPECT_EQ(trades.at(0).executionPrice, 101);
+    EXPECT_EQ(trades.at(0).executionQuantity, 4);
+
+    ASSERT_EQ(levelAt(engine.getBuyOrders(), 101).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 101).front(), 2U);
+}
+
+TEST_F(BestMatchingBySideTest, BuySweepHonorsPriceTimePriorityAcrossLevels) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 3); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 4); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 5); // id 3
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 101, 9); // id 4
+
+    ASSERT_EQ(trades.size(), 3U);
+    EXPECT_EQ(trades.at(0).sellOrderId, 1U);
+    EXPECT_EQ(trades.at(1).sellOrderId, 2U);
+    EXPECT_EQ(trades.at(2).sellOrderId, 3U);
+
+    const auto& sells = engine.getSellOrders();
+    ASSERT_EQ(sells.size(), 1U);
+    ASSERT_EQ(levelAt(sells, 101).size(), 1U);
+    EXPECT_EQ(levelAt(sells, 101).front(), 3U);
+}
+
+TEST_F(BestMatchingBySideTest, SellSweepHonorsPriceTimePriorityAcrossLevels) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 101, 2); // id 1
+    engine.processOrder(Side::BUY, Type::LIMIT, 101, 3); // id 2
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 4); // id 3
+
+    const std::vector<Trade> trades = engine.processOrder(Side::SELL, Type::LIMIT, 100, 7); // id 4
+
+    ASSERT_EQ(trades.size(), 3U);
+    EXPECT_EQ(trades.at(0).buyOrderId, 1U);
+    EXPECT_EQ(trades.at(1).buyOrderId, 2U);
+    EXPECT_EQ(trades.at(2).buyOrderId, 3U);
+
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getBuyOrders(), 100).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 3U);
+}
+
+TEST_F(BestMatchingBySideTest, LimitOrderStopsWhenBestOpposingPriceNoLongerCrosses) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 2); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 102, 3); // id 2
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 3
+
+    ASSERT_EQ(trades.size(), 1U);
+    EXPECT_EQ(trades.at(0).executionPrice, 100);
+    EXPECT_EQ(trades.at(0).executionQuantity, 2);
+
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getBuyOrders(), 100).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 3U);
+
+    ASSERT_EQ(engine.getSellOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getSellOrders(), 102).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getSellOrders(), 102).front(), 2U);
+}
+
+TEST_F(BestMatchingBySideTest, ExactFillRemovesDepletedPriceLevel) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 5); // id 1
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 2
+
+    ASSERT_EQ(trades.size(), 1U);
+    EXPECT_TRUE(engine.getSellOrders().empty());
+    EXPECT_TRUE(engine.getBuyOrders().empty());
+}
+
+TEST_F(BestMatchingBySideTest, NoMatchStoresIncomingOrderInOwnBook) {
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 95, 7); // id 1
+
+    EXPECT_TRUE(trades.empty());
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getBuyOrders(), 95).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 95).front(), 1U);
+    EXPECT_TRUE(engine.getSellOrders().empty());
+}

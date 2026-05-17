@@ -1,0 +1,33 @@
+name: C++ Coverage
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    env:
+      CC: gcc
+      CXX: g++
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (coverage)
+        run: cmake -S . -B build-coverage -DBUILD_TESTING=ON -DENABLE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build (coverage)
+        run: cmake --build build-coverage --parallel
+
+      - name: Run coverage target
+        run: cmake --build build-coverage --target coverage
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcov-reports
+          path: |
+            build-coverage/coverage/coverage_summary.txt
+            build-coverage/coverage/*.gcov
+          if-no-files-found: warn

@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <deque>
 #include <map>
+#include <vector>
 
 namespace {
 
@@ -15,12 +16,15 @@ const std::deque<uint64_t>& levelAt(const std::map<int, std::deque<uint64_t>, Co
     return it->second;
 }
 
+class ModifyOrderTest : public ::testing::Test {
+protected:
+    MatchingEngine engine{{}, {}};
+};
+
 } // namespace
 
-TEST(MatchingEngineV8Modify, ModifyMissingOrder_ReturnsFalseAndDoesNotMutateBook) {
-    MatchingEngine engine({}, {});
-
-    engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
+TEST_F(ModifyOrderTest, ModifyMissingOrderReturnsFalseAndDoesNotMutateBook) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 5);  // id 1
     engine.processOrder(Side::SELL, Type::LIMIT, 105, 6); // id 2
 
     const auto beforeBuys = engine.getBuyOrders();
@@ -33,9 +37,31 @@ TEST(MatchingEngineV8Modify, ModifyMissingOrder_ReturnsFalseAndDoesNotMutateBook
     EXPECT_EQ(engine.getSellOrders(), beforeSells);
 }
 
-TEST(MatchingEngineV8Modify, ReduceQuantitySamePrice_KeepsFIFOPosition) {
-    MatchingEngine engine({}, {});
+TEST_F(ModifyOrderTest, ModifyRejectsNonPositivePriceOrQuantity) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
 
+    const auto beforeBuys = engine.getBuyOrders();
+
+    EXPECT_FALSE(engine.modifyOrder(1, 0, 5));
+    EXPECT_FALSE(engine.modifyOrder(1, 100, 0));
+    EXPECT_FALSE(engine.modifyOrder(1, -1, 5));
+    EXPECT_FALSE(engine.modifyOrder(1, 100, -2));
+
+    EXPECT_EQ(engine.getBuyOrders(), beforeBuys);
+}
+
+TEST_F(ModifyOrderTest, ModifyNoOpReturnsTrueWithoutChangingBook) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
+
+    const auto beforeBuys = engine.getBuyOrders();
+
+    const bool ok = engine.modifyOrder(1, 100, 5);
+
+    EXPECT_TRUE(ok);
+    EXPECT_EQ(engine.getBuyOrders(), beforeBuys);
+}
+
+TEST_F(ModifyOrderTest, ReduceQuantitySamePriceKeepsFIFOPosition) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 10); // id 1
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 10); // id 2
 
@@ -51,9 +77,7 @@ TEST(MatchingEngineV8Modify, ReduceQuantitySamePrice_KeepsFIFOPosition) {
     EXPECT_EQ(trades.at(1).executionQuantity, 1);
 }
 
-TEST(MatchingEngineV8Modify, IncreaseQuantitySamePrice_LosesPriorityAndMovesToBack) {
-    MatchingEngine engine({}, {});
-
+TEST_F(ModifyOrderTest, IncreaseQuantitySamePriceLosesPriorityAndMovesToBack) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 2
 
@@ -69,30 +93,26 @@ TEST(MatchingEngineV8Modify, IncreaseQuantitySamePrice_LosesPriorityAndMovesToBa
     EXPECT_EQ(trades.at(1).executionQuantity, 1);
 }
 
-TEST(MatchingEngineV8Modify, PriceChange_MovesOrderToNewPriceLevel) {
-    MatchingEngine engine({}, {});
-
+TEST_F(ModifyOrderTest, PriceChangeMovesOrderToNewPriceLevel) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
 
     const bool ok = engine.modifyOrder(1, 102, 5);
-    EXPECT_TRUE(ok);
 
+    EXPECT_TRUE(ok);
     EXPECT_EQ(engine.getBuyOrders().count(100), 0U);
     EXPECT_EQ(engine.getBuyOrders().count(102), 1U);
     ASSERT_EQ(levelAt(engine.getBuyOrders(), 102).size(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 102).front(), 1U);
 }
 
-TEST(MatchingEngineV8Modify, PriceChangeToExistingLevel_AppendsAtBackOfThatLevel) {
-    MatchingEngine engine({}, {});
-
+TEST_F(ModifyOrderTest, PriceChangeToExistingLevelAppendsAtBackOfLevelQueue) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
     engine.processOrder(Side::BUY, Type::LIMIT, 101, 5); // id 2
     engine.processOrder(Side::BUY, Type::LIMIT, 101, 5); // id 3
 
     const bool ok = engine.modifyOrder(1, 101, 5);
-    EXPECT_TRUE(ok);
 
+    EXPECT_TRUE(ok);
     EXPECT_EQ(engine.getBuyOrders().count(100), 0U);
     ASSERT_EQ(levelAt(engine.getBuyOrders(), 101).size(), 3U);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 101).at(0), 2U);
@@ -100,26 +120,23 @@ TEST(MatchingEngineV8Modify, PriceChangeToExistingLevel_AppendsAtBackOfThatLevel
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 101).at(2), 1U);
 }
 
-TEST(MatchingEngineV8Modify, ModifyFilledOrder_ReturnsFalse) {
-    MatchingEngine engine({}, {});
-
-    engine.processOrder(Side::BUY, Type::LIMIT, 100, 3); // id 1
+TEST_F(ModifyOrderTest, ModifyFilledOrderReturnsFalse) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 3);  // id 1
     engine.processOrder(Side::SELL, Type::LIMIT, 100, 3); // id 2 fills id 1
 
     const bool ok = engine.modifyOrder(1, 101, 3);
+
     EXPECT_FALSE(ok);
 }
 
-TEST(MatchingEngineV8Modify, ModifyOneSide_DoesNotMutateOppositeSide) {
-    MatchingEngine engine({}, {});
-
-    engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 1
-    engine.processOrder(Side::SELL, Type::LIMIT, 110, 7); // id 2
+TEST_F(ModifyOrderTest, ModifyOneSideDoesNotMutateOppositeSideBook) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 100, 5);   // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 110, 7);  // id 2
 
     const auto beforeSells = engine.getSellOrders();
 
     const bool ok = engine.modifyOrder(1, 101, 5);
-    EXPECT_TRUE(ok);
 
+    EXPECT_TRUE(ok);
     EXPECT_EQ(engine.getSellOrders(), beforeSells);
 }

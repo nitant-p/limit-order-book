@@ -1,0 +1,133 @@
+#include "MatchingEngine.h"
+
+#include <gtest/gtest.h>
+
+#include <cstdint>
+#include <deque>
+#include <map>
+#include <vector>
+
+namespace {
+
+template <typename Comparator>
+const std::deque<uint64_t>& levelAt(const std::map<int, std::deque<uint64_t>, Comparator>& levels, int price) {
+    const auto it = levels.find(price);
+    EXPECT_NE(it, levels.end());
+    return it->second;
+}
+
+class OrderTypeBehaviorTest : public ::testing::Test {
+protected:
+    MatchingEngine engine{{}, {}};
+};
+
+} // namespace
+
+TEST_F(OrderTypeBehaviorTest, MarketBuyConsumesBestAsksAcrossMultipleLevels) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 3); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 4); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 102, 5); // id 3
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::MARKET, 0, 7); // id 4
+
+    ASSERT_EQ(trades.size(), 2U);
+    EXPECT_EQ(trades.at(0).buyOrderId, 4U);
+    EXPECT_EQ(trades.at(0).sellOrderId, 1U);
+    EXPECT_EQ(trades.at(0).executionPrice, 100);
+    EXPECT_EQ(trades.at(0).executionQuantity, 3);
+
+    EXPECT_EQ(trades.at(1).buyOrderId, 4U);
+    EXPECT_EQ(trades.at(1).sellOrderId, 2U);
+    EXPECT_EQ(trades.at(1).executionPrice, 101);
+    EXPECT_EQ(trades.at(1).executionQuantity, 4);
+
+    ASSERT_EQ(engine.getSellOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getSellOrders(), 102).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getSellOrders(), 102).front(), 3U);
+}
+
+TEST_F(OrderTypeBehaviorTest, MarketSellConsumesBestBidsAcrossMultipleLevels) {
+    engine.processOrder(Side::BUY, Type::LIMIT, 103, 2); // id 1
+    engine.processOrder(Side::BUY, Type::LIMIT, 102, 3); // id 2
+    engine.processOrder(Side::BUY, Type::LIMIT, 101, 4); // id 3
+
+    const std::vector<Trade> trades = engine.processOrder(Side::SELL, Type::MARKET, 0, 5); // id 4
+
+    ASSERT_EQ(trades.size(), 2U);
+    EXPECT_EQ(trades.at(0).buyOrderId, 1U);
+    EXPECT_EQ(trades.at(0).executionPrice, 103);
+    EXPECT_EQ(trades.at(0).executionQuantity, 2);
+
+    EXPECT_EQ(trades.at(1).buyOrderId, 2U);
+    EXPECT_EQ(trades.at(1).executionPrice, 102);
+    EXPECT_EQ(trades.at(1).executionQuantity, 3);
+
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getBuyOrders(), 101).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 101).front(), 3U);
+}
+
+TEST_F(OrderTypeBehaviorTest, MarketOrdersIgnoreProvidedPriceField) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 105, 2); // id 1
+    const std::vector<Trade> buyTrades = engine.processOrder(Side::BUY, Type::MARKET, 1, 2); // id 2
+
+    ASSERT_EQ(buyTrades.size(), 1U);
+    EXPECT_EQ(buyTrades.at(0).executionPrice, 105);
+
+    engine.processOrder(Side::BUY, Type::LIMIT, 95, 3); // id 3
+    const std::vector<Trade> sellTrades = engine.processOrder(Side::SELL, Type::MARKET, 9999, 2); // id 4
+
+    ASSERT_EQ(sellTrades.size(), 1U);
+    EXPECT_EQ(sellTrades.at(0).executionPrice, 95);
+}
+
+TEST_F(OrderTypeBehaviorTest, MarketOrderWithNoLiquidityDoesNotRestInBook) {
+    const std::vector<Trade> buyTrades = engine.processOrder(Side::BUY, Type::MARKET, 0, 10); // id 1
+    const std::vector<Trade> sellTrades = engine.processOrder(Side::SELL, Type::MARKET, 0, 10); // id 2
+
+    EXPECT_TRUE(buyTrades.empty());
+    EXPECT_TRUE(sellTrades.empty());
+    EXPECT_TRUE(engine.getBuyOrders().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
+}
+
+TEST_F(OrderTypeBehaviorTest, MarketOrderWithInsufficientLiquidityDiscardsRemainder) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 2); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 3); // id 2
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::MARKET, 0, 10); // id 3
+
+    ASSERT_EQ(trades.size(), 2U);
+    EXPECT_EQ(trades.at(0).executionQuantity, 2);
+    EXPECT_EQ(trades.at(1).executionQuantity, 3);
+    EXPECT_TRUE(engine.getSellOrders().empty());
+    EXPECT_TRUE(engine.getBuyOrders().empty());
+}
+
+TEST_F(OrderTypeBehaviorTest, LimitOrderWithInsufficientLiquidityRestsRemainingQuantity) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 2); // id 1
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 10); // id 2
+
+    ASSERT_EQ(trades.size(), 1U);
+    EXPECT_EQ(trades.at(0).executionQuantity, 2);
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(levelAt(engine.getBuyOrders(), 100).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 2U);
+}
+
+TEST_F(OrderTypeBehaviorTest, MarketVsLimitAtSameInputQuantityBehaveDifferentlyWhenPriceDoesNotCross) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 110, 4); // id 1
+
+    const std::vector<Trade> limitTrades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 4); // id 2
+    EXPECT_TRUE(limitTrades.empty());
+    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 2U);
+
+    const std::vector<Trade> marketTrades = engine.processOrder(Side::BUY, Type::MARKET, 100, 4); // id 3
+    ASSERT_EQ(marketTrades.size(), 1U);
+    EXPECT_EQ(marketTrades.at(0).executionPrice, 110);
+
+    EXPECT_EQ(engine.getBuyOrders().count(100), 1U);
+    EXPECT_TRUE(engine.getSellOrders().empty());
+}

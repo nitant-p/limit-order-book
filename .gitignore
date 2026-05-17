@@ -1,5 +1,6 @@
 # Build directories
 build/
+build-coverage/
 out/
 cmake-build-*/
 
@@ -12,6 +13,7 @@ CTestTestfile.cmake
 compile_commands.json
 Testing/
 _deps/
+coverage/
 
 # Compiled objects and libraries
 *.o
@@ -42,3 +44,6 @@ matching_engine_tests
 
 # OS files
 .DS_Store
+
+# Coverage artifacts
+*.gcov

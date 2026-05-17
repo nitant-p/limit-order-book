@@ -49,73 +49,29 @@ if(BUILD_TESTING)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
 
-#    add_executable(matching_engine_tests
-#        tests/MatchingEngineTest.cpp
-#    )
-#
-#    target_link_libraries(matching_engine_tests
-#        PRIVATE
-#            order_book_lib
-#            GTest::gtest_main
-#    )
-
     include(GoogleTest)
-#    gtest_discover_tests(matching_engine_tests)
-
-    add_executable(matching_engine_v5_tests
-        tests/MatchingEngineV5Test.cpp
+    add_executable(matching_engine_tests
+        tests/BestMatchingBySideTest.cpp
+        tests/OrderTypeBehaviorTest.cpp
+        tests/CancelOrderTest.cpp
+        tests/ModifyOrderTest.cpp
+        tests/OrderIdBehaviorTest.cpp
     )
 
-    target_link_libraries(matching_engine_v5_tests
+    target_link_libraries(matching_engine_tests
         PRIVATE
             order_book_lib
             GTest::gtest_main
     )
 
-    gtest_discover_tests(matching_engine_v5_tests)
-
-    add_executable(matching_engine_v6_tests
-        tests/MatchingEngineV6Test.cpp
-    )
-
-    target_link_libraries(matching_engine_v6_tests
-        PRIVATE
-            order_book_lib
-            GTest::gtest_main
-    )
-
-    gtest_discover_tests(matching_engine_v6_tests)
-
-    add_executable(matching_engine_v7_tests
-        tests/MatchingEngineV7Test.cpp
-    )
-
-    target_link_libraries(matching_engine_v7_tests
-        PRIVATE
-            order_book_lib
-            GTest::gtest_main
-    )
-
-    gtest_discover_tests(matching_engine_v7_tests)
-
-    add_executable(matching_engine_v8_modify_tests
-        tests/MatchingEngineV8ModifyOrderTest.cpp
-    )
-
-    target_link_libraries(matching_engine_v8_modify_tests
-        PRIVATE
-            order_book_lib
-            GTest::gtest_main
-    )
-
-    gtest_discover_tests(matching_engine_v8_modify_tests)
+    gtest_discover_tests(matching_engine_tests)
 
     if(ENABLE_COVERAGE)
         add_custom_target(coverage
             COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
             COMMAND ${CMAKE_SOURCE_DIR}/scripts/generate_coverage.sh ${CMAKE_BINARY_DIR} ${CMAKE_SOURCE_DIR}
             WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-            DEPENDS matching_engine_v5_tests matching_engine_v6_tests matching_engine_v7_tests matching_engine_v8_modify_tests
+            DEPENDS matching_engine_tests
             COMMENT "Run tests and generate gcov coverage artifacts under build/coverage"
         )
     endif()
