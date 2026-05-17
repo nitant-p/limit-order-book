@@ -212,3 +212,79 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
 
     return tradeList;
 }
+
+bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity) {
+    Order* orderPtr = this->getOrderById(orderId);
+    if (orderPtr == nullptr) {
+        cout << "Order ID does not exist" << endl;
+        return false;
+    }
+
+    if (newQuantity <= 0 or newPrice <= 0) {
+        cout << "Quantity and price must be positive." << endl;
+        return false;
+    } else if (newQuantity == orderPtr->quantity and newPrice == orderPtr->price) {
+        cout << "Order has not changed. Ignore request." << endl;
+        return true;
+    } else if (newQuantity < orderPtr->quantity and newPrice == orderPtr->price) {
+        // can keep queue position
+        cout << "Only quantity has reduced. Order can keep its queue position." << endl;
+        orderPtr->quantity = newQuantity;
+        return true;
+    }
+
+    cout << "Order must be reinserted into queue." << endl;
+
+    deque<uint64_t>* queuePtr = this->getOrderQueueByOrderId(orderId);
+    if (queuePtr == nullptr) {
+        cout << "Could not find queue for this order." << endl;
+        return false;
+    }
+
+    for (auto it = queuePtr->begin(); it != queuePtr->end(); ++it) {
+        if (*it == orderId) {
+            // delete from queue
+            queuePtr->erase(it);
+            break;
+        }
+    }
+
+    // delete queue if empty
+    if (orderPtr->side == Side::BUY) this->removeEmptyOrderQueuesByPrice(this->buyOrders, orderPtr->price);
+    else this->removeEmptyOrderQueuesByPrice(this->sellOrders, orderPtr->price);
+
+
+    // modify order
+    orderPtr->price = newPrice;
+    orderPtr->quantity = newQuantity;
+    saveOrderToBook(*orderPtr);
+
+    return true;
+}
+
+Order* MatchingEngine::getOrderById(uint64_t orderId) {
+    auto it = this->idToOrderMap.find(orderId);
+    if (it != this->idToOrderMap.end()) return &it->second;
+    else return nullptr;
+}
+
+std::deque<uint64_t>* MatchingEngine::getOrderQueueByOrderId(uint64_t orderId) {
+    Order* orderPtr = this->getOrderById(orderId);
+    if (orderPtr == nullptr) {
+        return nullptr;
+    }
+
+    map<int, std::deque<uint64_t>>* orderBookPtr = nullptr;
+    if (orderPtr->side == Side::BUY) orderBookPtr = &this->buyOrders;
+    else orderBookPtr = &this->sellOrders;
+
+    auto it = orderBookPtr->find(orderPtr->price);
+
+    return it == orderBookPtr->end() ? nullptr : &it->second;
+}
+
+void MatchingEngine::saveOrderToBook(const Order& order) {
+    if (order.side == Side::BUY) this->buyOrders[order.price].push_back(order.id);
+    else this->sellOrders[order.price].push_back(order.id);
+}
+
