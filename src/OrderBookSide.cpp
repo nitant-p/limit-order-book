@@ -15,52 +15,64 @@ Side OrderBookSide::side() const {
 }
 
 bool OrderBookSide::empty() const {
-    return this->levels_.empty();
+    return this->priceToLevels_.empty();
 }
 
 size_t OrderBookSide::priceLevelCount() const {
-    return this->levels_.size();
+    return this->priceToLevels_.size();
 }
 
 std::optional<int> OrderBookSide::bestPrice() const {
-    if (this->levels_.empty()) return nullopt;
+    if (this->priceToLevels_.empty()) return nullopt;
 
     if (this->side_ == Side::BUY) {
-        auto it = this->levels_.end();
+        auto it = this->priceToLevels_.end();
         --it;
         return it->first;
     } else {
-        return this->levels_.begin()->first;
+        return this->priceToLevels_.begin()->first;
     }
 }
 
-void OrderBookSide::addOrder(int price, uint64_t orderId) {
-    this->levels_[price].push_back(orderId);
+void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, int quantity) {
+    if (idToOrderNodePtr.contains(orderId)) return;
+
+    Order order(orderId, side, type, price, quantity);
+    auto ptr = priceToLevels_.find(price);
+    if (ptr == priceToLevels_.end()) {
+        // insert at start
+        OrderNode oNode(order, nullptr, nullptr);
+        PriceLevel priceLevel(oNode, oNode);
+    } else {
+        // join at end
+
+    }
+    this->priceToLevels_[price].push_back(orderId);
 }
 
 const deque<uint64_t>* OrderBookSide::findLevel(int price) const {
-    auto it = levels_.find(price);
-    if (it == levels_.end()) return nullptr;
+    auto it = priceToLevels_.find(price);
+    if (it == priceToLevels_.end()) return nullptr;
     return &it->second;
 }
 
 deque<uint64_t>* OrderBookSide::findLevel(int price) {
-    auto it = levels_.find(price);
-    if (it == levels_.end()) return nullptr;
+    auto it = priceToLevels_.find(price);
+    if (it == priceToLevels_.end()) return nullptr;
     return &it->second;
 }
 
 void OrderBookSide::removeLevelIfEmpty(int price) {
-    auto it = levels_.find(price);
+    auto it = priceToLevels_.find(price);
     // if does not exist or not empty. do nothing
-    if (it == levels_.end() or !it->second.empty()) return;
+    if (it == priceToLevels_.end() or !it->second.empty()) return;
 
-    levels_.erase(it);
+    priceToLevels_.erase(it);
 }
 
 size_t OrderBookSide::orderCountAtPrice(int price) const {
-    auto it = levels_.find(price);
-    if (it == levels_.end()) return 0;
+    auto it = priceToLevels_.find(price);
+    if (it == priceToLevels_.end()) return 0;
     else return it->second.size();
 }
 
@@ -79,7 +91,7 @@ uint64_t OrderBookSide::volumeAtPrice(int price, const std::unordered_map<uint64
 vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels, const unordered_map<uint64_t, Order>& ordersById) const {
     vector<LevelSnapshot> levelSnapshots;
     if (side_ == Side::BUY) {
-        for (const auto& l : this->levels_ | ranges::views::reverse) {
+        for (const auto& l : this->priceToLevels_ | ranges::views::reverse) {
             uint64_t totalQuantity = 0;
             const size_t orderCount = l.second.size();
             for (auto it = l.second.begin(); it != l.second.end(); ++it) {
@@ -93,7 +105,7 @@ vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels, const unordered_map
             if (levelSnapshots.size() == levels) break;
         }
     } else {
-        for (auto it = this->levels_.begin(); it != this->levels_.end(); ++it) {
+        for (auto it = this->priceToLevels_.begin(); it != this->priceToLevels_.end(); ++it) {
             const deque<uint64_t>& orderQueue = it->second;
             uint64_t totalQuantity = 0;
             const size_t orderCount = orderQueue.size();
@@ -114,7 +126,7 @@ vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels, const unordered_map
 
 vector<uint64_t> OrderBookSide::getAllOrderIds() {
     vector<uint64_t> orderIds;
-    for (auto it = levels_.begin(); it != levels_.end(); ++it) {
+    for (auto it = priceToLevels_.begin(); it != priceToLevels_.end(); ++it) {
         deque<uint64_t> queue = it->second;
         for (auto qIt = queue.begin(); qIt != queue.end(); ++qIt) orderIds.push_back(*qIt);
     }

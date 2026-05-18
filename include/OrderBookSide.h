@@ -16,6 +16,17 @@ struct LevelSnapshot {
     size_t orderCount;
 };
 
+struct OrderNode {
+    Order order;
+    OrderNode* prev;
+    OrderNode* next;
+};
+
+struct PriceLevel {
+    OrderNode* head;
+    OrderNode* end;
+};
+
 class OrderBookSide {
 public:
     explicit OrderBookSide(Side side);
@@ -25,7 +36,7 @@ public:
     size_t priceLevelCount() const;
     std::optional<int> bestPrice() const;
 
-    void addOrder(int price, uint64_t orderId);
+    void addOrder(uint64_t orderId, Side side, Type type, int price, int quantity);
 
     const std::deque<uint64_t>* findLevel(int price) const;
     std::deque<uint64_t>* findLevel(int price);
@@ -43,5 +54,6 @@ public:
     std::vector<uint64_t> getAllOrderIds();
 private:
     Side side_;
-    std::map<int, std::deque<uint64_t>> levels_;
+    std::map<int, PriceLevel> priceToLevels_;
+    std::map<uint64_t, OrderNode*> idToOrderNodePtr;
 };

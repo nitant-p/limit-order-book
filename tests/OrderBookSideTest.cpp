@@ -42,7 +42,7 @@ TEST(OrderBookSideContract, MethodSignaturesAreAsExpected) {
     static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().findLevel(100)), const std::deque<uint64_t>*>);
     static_assert(std::is_same_v<decltype(std::declval<OrderBookSide&>().findLevel(100)), std::deque<uint64_t>*>);
 
-    static_assert(std::is_same_v<decltype(std::declval<OrderBookSide&>().removeEmptyLevel(100)), void>);
+    static_assert(std::is_same_v<decltype(std::declval<OrderBookSide&>().removeLevelIfEmpty(100)), void>);
     static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().orderCountAtPrice(100)), size_t>);
 
     static_assert(std::is_same_v<
@@ -111,7 +111,7 @@ TEST_F(OrderBookSideBuyTest, VolumeAtPriceReturnsZeroForMissingLevelOrEmptyLevel
     auto* queue = side.findLevel(100);
     ASSERT_NE(queue, nullptr);
     queue->clear();
-    side.removeEmptyLevel(100);
+    side.removeLevelIfEmpty(100);
 
     EXPECT_EQ(side.volumeAtPrice(100, ordersById), 0U);
 }
@@ -173,14 +173,14 @@ TEST_F(OrderBookSideBuyTest, FindLevelReturnsNullptrForMissingPrice) {
 TEST_F(OrderBookSideBuyTest, RemoveEmptyLevelDeletesOnlyWhenQueueIsEmpty) {
     side.addOrder(100, 1);
 
-    side.removeEmptyLevel(100);
+    side.removeLevelIfEmpty(100);
     EXPECT_NE(side.findLevel(100), nullptr);
 
     auto* queue = side.findLevel(100);
     ASSERT_NE(queue, nullptr);
     queue->clear();
 
-    side.removeEmptyLevel(100);
+    side.removeLevelIfEmpty(100);
     EXPECT_EQ(side.findLevel(100), nullptr);
 }
 

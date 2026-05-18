@@ -4,21 +4,19 @@
 
 #include <cstdint>
 #include <deque>
-#include <map>
 #include <vector>
 
 namespace {
 
-template <typename Comparator>
-const std::deque<uint64_t>& levelAt(const std::map<int, std::deque<uint64_t>, Comparator>& levels, int price) {
-    const auto it = levels.find(price);
-    EXPECT_NE(it, levels.end());
-    return it->second;
+const std::deque<uint64_t>& levelAt(const OrderBookSide& side, int price) {
+    const auto* queue = side.findLevel(price);
+    EXPECT_NE(queue, nullptr);
+    return *queue;
 }
 
 class OrderTypeBehaviorTest : public ::testing::Test {
 protected:
-    MatchingEngine engine{{}, {}};
+    MatchingEngine engine{OrderBookSide{Side::BUY}, OrderBookSide{Side::SELL}};
 };
 
 } // namespace
@@ -41,7 +39,7 @@ TEST_F(OrderTypeBehaviorTest, MarketBuyConsumesBestAsksAcrossMultipleLevels) {
     EXPECT_EQ(trades.at(1).executionPrice, 101);
     EXPECT_EQ(trades.at(1).executionQuantity, 4);
 
-    ASSERT_EQ(engine.getSellOrders().size(), 1U);
+    ASSERT_EQ(engine.getSellOrders().priceLevelCount(), 1U);
     ASSERT_EQ(levelAt(engine.getSellOrders(), 102).size(), 1U);
     EXPECT_EQ(levelAt(engine.getSellOrders(), 102).front(), 3U);
 }
@@ -62,7 +60,7 @@ TEST_F(OrderTypeBehaviorTest, MarketSellConsumesBestBidsAcrossMultipleLevels) {
     EXPECT_EQ(trades.at(1).executionPrice, 102);
     EXPECT_EQ(trades.at(1).executionQuantity, 3);
 
-    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(engine.getBuyOrders().priceLevelCount(), 1U);
     ASSERT_EQ(levelAt(engine.getBuyOrders(), 101).size(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 101).front(), 3U);
 }
@@ -111,7 +109,7 @@ TEST_F(OrderTypeBehaviorTest, LimitOrderWithInsufficientLiquidityRestsRemainingQ
 
     ASSERT_EQ(trades.size(), 1U);
     EXPECT_EQ(trades.at(0).executionQuantity, 2);
-    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(engine.getBuyOrders().priceLevelCount(), 1U);
     ASSERT_EQ(levelAt(engine.getBuyOrders(), 100).size(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 2U);
 }
@@ -121,13 +119,13 @@ TEST_F(OrderTypeBehaviorTest, MarketVsLimitAtSameInputQuantityBehaveDifferentlyW
 
     const std::vector<Trade> limitTrades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 4); // id 2
     EXPECT_TRUE(limitTrades.empty());
-    ASSERT_EQ(engine.getBuyOrders().size(), 1U);
+    ASSERT_EQ(engine.getBuyOrders().priceLevelCount(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 2U);
 
     const std::vector<Trade> marketTrades = engine.processOrder(Side::BUY, Type::MARKET, 100, 4); // id 3
     ASSERT_EQ(marketTrades.size(), 1U);
     EXPECT_EQ(marketTrades.at(0).executionPrice, 110);
 
-    EXPECT_EQ(engine.getBuyOrders().count(100), 1U);
+    EXPECT_NE(engine.getBuyOrders().findLevel(100), nullptr);
     EXPECT_TRUE(engine.getSellOrders().empty());
 }
