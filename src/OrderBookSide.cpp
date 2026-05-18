@@ -50,7 +50,7 @@ deque<uint64_t>* OrderBookSide::findLevel(int price) {
     return &it->second;
 }
 
-void OrderBookSide::removeEmptyLevel(int price) {
+void OrderBookSide::removeLevelIfEmpty(int price) {
     auto it = levels_.find(price);
     // if does not exist or not empty. do nothing
     if (it == levels_.end() or !it->second.empty()) return;
@@ -110,4 +110,13 @@ vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels, const unordered_map
     }
 
     return levelSnapshots;
+}
+
+vector<uint64_t> OrderBookSide::getAllOrderIds() {
+    vector<uint64_t> orderIds;
+    for (auto it = levels_.begin(); it != levels_.end(); ++it) {
+        deque<uint64_t> queue = it->second;
+        for (auto qIt = queue.begin(); qIt != queue.end(); ++qIt) orderIds.push_back(*qIt);
+    }
+    return orderIds;
 }

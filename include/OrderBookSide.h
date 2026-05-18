@@ -30,7 +30,7 @@ public:
     const std::deque<uint64_t>* findLevel(int price) const;
     std::deque<uint64_t>* findLevel(int price);
 
-    void removeEmptyLevel(int price);
+    void removeLevelIfEmpty(int price);
 
     size_t orderCountAtPrice(int price) const;
     uint64_t volumeAtPrice(int price, const std::unordered_map<uint64_t, Order>& ordersById) const;
@@ -40,6 +40,7 @@ public:
         const std::unordered_map<uint64_t, Order>& ordersById
     ) const;
 
+    std::vector<uint64_t> getAllOrderIds();
 private:
     Side side_;
     std::map<int, std::deque<uint64_t>> levels_;
