@@ -218,7 +218,7 @@ bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity
         return false;
     } else if (newQuantity == orderPtr->quantity and newPrice == orderPtr->price) {
         cout << "Order has not changed. Ignore request." << endl;
-        return true;
+        return false;
     } else if (newQuantity < orderPtr->quantity and newPrice == orderPtr->price) {
         // can keep queue position
         cout << "Only quantity has reduced. Order can keep its queue position." << endl;
@@ -255,28 +255,8 @@ bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity
     return true;
 }
 
-Order* MatchingEngine::getOrderById(uint64_t orderId) {
-    auto it = this->idToOrderMap.find(orderId);
-    if (it != this->idToOrderMap.end()) return &it->second;
-    else return nullptr;
-}
-
-std::deque<uint64_t>* MatchingEngine::getOrderQueueByOrderId(uint64_t orderId) {
-    Order* orderPtr = this->getOrderById(orderId);
-    if (orderPtr == nullptr) {
-        return nullptr;
-    }
-
-    OrderBookSide* orderBookPtr = nullptr;
-    if (orderPtr->side == Side::BUY) orderBookPtr = &this->buyBook;
-    else orderBookPtr = &this->sellBook;
-
-    auto it = orderBookPtr->findLevel(orderPtr->price);
-    return it;
-}
-
 void MatchingEngine::saveOrderToBook(const Order& order) {
-    if (order.side == Side::BUY) this->buyBook.addOrder(order.price, order.id);
-    else this->sellBook.addOrder(order.price, order.id);
+    if (order.side == Side::BUY) this->buyBook.addOrder(order);
+    else this->sellBook.addOrder(order);
 }
 

@@ -49,6 +49,8 @@ public:
 
     // Order operations
     void addOrder(uint64_t orderId, Side side, Type type, int price, int quantity);
+    void addOrder(Order& order);
+
     void deleteOrderById(uint64_t orderId);
 
     // Price level lookup
@@ -73,6 +75,7 @@ public:
     const Order* getBestOrder() const;
     void removeOrderIfFilled(uint64_t id);
     bool reduceOrderQuantity(uint64_t id, int quantity);
+    bool modifyOrder(Order updatedOrder, bool loseQueuePos);
 
 private:
     Side side_;
@@ -83,3 +86,23 @@ private:
     // Order ID -> owning pointer to actual order node
     std::map<uint64_t, std::unique_ptr<OrderNode>> orderNodesById_;
 };
+
+
+1. Find the OrderNode by order ID.
+2. Save original price and quantity.
+3. Find original PriceLevel.
+4. Determine new price and new quantity.
+5. Validate quantity/price if needed.
+6. If price does not change and queue position is not lost:
+   - update quantity
+   - update level totalQuantity by newQuantity - originalQuantity
+   - return true
+7. Otherwise:
+   - unlink node from original level
+   - update original level head/end/orderCount/totalQuantity
+   - remove original level if empty
+   - update node's order fields
+   - create/find new level
+   - append node to end of new level
+   - update new level head/end/orderCount/totalQuantity
+   - return true

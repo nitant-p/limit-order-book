@@ -58,6 +58,10 @@ void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, 
     }
 }
 
+void OrderBookSide::addOrder(Order& order) {
+    addOrder(order.id, order.side, order.type, order.price, order.quantity);
+}
+
 bool OrderBookSide::doesOrderExist(uint64_t orderId) const {
     auto it = orderNodesById_.find(orderId);
     return it != orderNodesById_.end(); 
@@ -189,5 +193,106 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
         return true;
     }
     
+    return true;
+}
+
+Order* OrderBookSide::findOrder(uint64_t orderId) {
+    auto it = orderNodesById_.find(orderId);
+    if (it == orderNodesById_.end()) return nullptr;
+    return &it->second.get()->order;
+}
+
+
+const Order* OrderBookSide::findOrder(uint64_t orderId) const {
+    auto it = orderNodesById_.find(orderId);
+    if (it == orderNodesById_.end()) return nullptr;
+    return &it->second.get()->order;
+}
+
+
+bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
+    if (updatedOrder.quantity <= 0) return false;
+
+    Order* orderPtr = findOrder(updatedOrder.id);
+    if (orderPtr == nullptr) return false;
+
+    PriceLevel* originalLevel = findLevel(orderPtr->price);
+    if (originalLevel == nullptr) return false;
+
+    int originalQuantity = orderPtr->quantity;
+    int originalPrice = orderPtr->price;
+
+    int delta = updatedOrder.quantity - originalQuantity;
+
+    if (!loseQueuePos and originalPrice == updatedOrder.price) {
+        // only update order and level quantity
+        orderPtr->quantity = updatedOrder.quantity;
+        originalLevel->totalQuantity += delta;
+        return true;
+    }
+
+    auto ptr = orderNodesById_.find(orderPtr->id);
+    if (ptr == orderNodesById_.end()) return false;
+
+    OrderNode* node = ptr->second.get();
+    OrderNode* prev = node->prev;
+    OrderNode* next = node->next;
+
+    if (prev != nullptr) prev->next = next;
+    if (next != nullptr) next->prev = prev;
+
+    // unlink
+    node->next = nullptr;
+    node->prev = nullptr;
+
+    if (originalLevel->head == node) originalLevel->head = next;
+    if (originalLevel->end == node) originalLevel->end = prev;
+
+    if (originalPrice == updatedOrder.price) {
+        // move to back of queue
+        node->prev = originalLevel->end;
+        originalLevel->end = node;
+        originalLevel->totalQuantity += delta;
+        return true;
+    }
+
+    // totally remove and add to new level
+    originalLevel->totalQuantity -= originalQuantity;
+    --originalLevel->orderCount;
+
+
+    removeLevelIfEmpty(originalPrice);
+
+    // update price and quantity
+    orderPtr->price = updatedOrder.price;
+    orderPtr->quantity = updatedOrder.quantity;
+
+
+    PriceLevel* newLevel = findLevel(orderPtr->price);
+
+    if (newLevel == nullptr) {
+        // create if missing
+        PriceLevel p{node, node, 1, static_cast<uint64_t>(orderPtr->quantity)};
+        priceToLevels_[orderPtr->price] = p;
+        return true;
+    }
+
+    OrderNode* levelEnd = newLevel->end;
+    OrderNode* levelHead = newLevel->head;
+
+    if (levelEnd == nullptr or levelHead == nullptr) {
+        // empty
+        newLevel->head = node;
+        newLevel->end = node;
+        newLevel->orderCount = 1;
+        newLevel->totalQuantity = orderPtr->quantity;
+    } else {
+        levelEnd->next = node;
+        node->prev = levelEnd;
+        ++newLevel->orderCount;
+        newLevel->totalQuantity += orderPtr->quantity;
+        newLevel->end = node;
+    }
+
     return true;
 }
