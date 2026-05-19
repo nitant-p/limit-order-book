@@ -39,9 +39,9 @@ TEST_F(OrderTypeBehaviorTest, MarketBuyConsumesBestAsksAcrossMultipleLevels) {
     EXPECT_EQ(trades.at(1).executionPrice, 101);
     EXPECT_EQ(trades.at(1).executionQuantity, 4);
 
-    ASSERT_EQ(engine.getSellBook().priceLevelCount(), 1U);
-    ASSERT_EQ(levelAt(engine.getSellBook(), 102).size(), 1U);
-    EXPECT_EQ(levelAt(engine.getSellBook(), 102).front(), 3U);
+    ASSERT_EQ(engine.getSellOrders().priceLevelCount(), 1U);
+    ASSERT_EQ(levelAt(engine.getSellOrders(), 102).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getSellOrders(), 102).front(), 3U);
 }
 
 TEST_F(OrderTypeBehaviorTest, MarketSellConsumesBestBidsAcrossMultipleLevels) {
@@ -86,7 +86,7 @@ TEST_F(OrderTypeBehaviorTest, MarketOrderWithNoLiquidityDoesNotRestInBook) {
     EXPECT_TRUE(buyTrades.empty());
     EXPECT_TRUE(sellTrades.empty());
     EXPECT_TRUE(engine.getBuyOrders().empty());
-    EXPECT_TRUE(engine.getSellBook().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
 }
 
 TEST_F(OrderTypeBehaviorTest, MarketOrderWithInsufficientLiquidityDiscardsRemainder) {
@@ -98,7 +98,7 @@ TEST_F(OrderTypeBehaviorTest, MarketOrderWithInsufficientLiquidityDiscardsRemain
     ASSERT_EQ(trades.size(), 2U);
     EXPECT_EQ(trades.at(0).executionQuantity, 2);
     EXPECT_EQ(trades.at(1).executionQuantity, 3);
-    EXPECT_TRUE(engine.getSellBook().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
     EXPECT_TRUE(engine.getBuyOrders().empty());
 }
 
@@ -127,5 +127,5 @@ TEST_F(OrderTypeBehaviorTest, MarketVsLimitAtSameInputQuantityBehaveDifferentlyW
     EXPECT_EQ(marketTrades.at(0).executionPrice, 110);
 
     EXPECT_NE(engine.getBuyOrders().findLevel(100), nullptr);
-    EXPECT_TRUE(engine.getSellBook().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
 }

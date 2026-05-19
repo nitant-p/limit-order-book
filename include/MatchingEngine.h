@@ -15,7 +15,7 @@ public:
     std::vector<Trade> processOrder(Side side, Type type, int price, int quantity);
     void printBook();
     const OrderBookSide& getBuyBook() const;
-    const OrderBookSide& getSellBook() const;
+    const OrderBookSide& getSellOrders() const;
     bool cancelOrder(uint64_t cancelId);
     bool modifyOrder(uint64_t orderId, int newPrice, int newQuantity);
 

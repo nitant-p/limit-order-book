@@ -178,14 +178,16 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
     Order& order = it->second.get()->order;
 
     if (delta > order.quantity) return false;
-    order.quantity -= delta;
-
-    if (order.quantity == 0) {
-        deleteOrderById(order.id);
-        return true;
-    }
 
     // reduce price level data
     PriceLevel& level = *findLevel(order.price);
     level.totalQuantity -= delta;
+
+    order.quantity -= delta;
+    if (order.quantity == 0) {
+        deleteOrderById(order.id);
+        return true;
+    }
+    
+    return true;
 }

@@ -34,8 +34,8 @@ TEST_F(BestMatchingBySideTest, BuyLimitMatchesLowestAskPriceFirst) {
     EXPECT_EQ(trades.at(0).executionPrice, 101);
     EXPECT_EQ(trades.at(0).executionQuantity, 4);
 
-    ASSERT_EQ(levelAt(engine.getSellBook(), 101).size(), 1U);
-    EXPECT_EQ(levelAt(engine.getSellBook(), 101).front(), 2U);
+    ASSERT_EQ(levelAt(engine.getSellOrders(), 101).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getSellOrders(), 101).front(), 2U);
 }
 
 TEST_F(BestMatchingBySideTest, SellLimitMatchesHighestBidPriceFirst) {
@@ -67,7 +67,7 @@ TEST_F(BestMatchingBySideTest, BuySweepHonorsPriceTimePriorityAcrossLevels) {
     EXPECT_EQ(trades.at(1).sellOrderId, 2U);
     EXPECT_EQ(trades.at(2).sellOrderId, 3U);
 
-    const auto& sells = engine.getSellBook();
+    const auto& sells = engine.getSellOrders();
     ASSERT_EQ(sells.priceLevelCount(), 1U);
     ASSERT_EQ(levelAt(sells, 101).size(), 1U);
     EXPECT_EQ(levelAt(sells, 101).front(), 3U);
@@ -104,9 +104,9 @@ TEST_F(BestMatchingBySideTest, LimitOrderStopsWhenBestOpposingPriceNoLongerCross
     ASSERT_EQ(levelAt(engine.getBuyBook(), 100).size(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyBook(), 100).front(), 3U);
 
-    ASSERT_EQ(engine.getSellBook().priceLevelCount(), 1U);
-    ASSERT_EQ(levelAt(engine.getSellBook(), 102).size(), 1U);
-    EXPECT_EQ(levelAt(engine.getSellBook(), 102).front(), 2U);
+    ASSERT_EQ(engine.getSellOrders().priceLevelCount(), 1U);
+    ASSERT_EQ(levelAt(engine.getSellOrders(), 102).size(), 1U);
+    EXPECT_EQ(levelAt(engine.getSellOrders(), 102).front(), 2U);
 }
 
 TEST_F(BestMatchingBySideTest, ExactFillRemovesDepletedPriceLevel) {
@@ -115,7 +115,7 @@ TEST_F(BestMatchingBySideTest, ExactFillRemovesDepletedPriceLevel) {
     const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 100, 5); // id 2
 
     ASSERT_EQ(trades.size(), 1U);
-    EXPECT_TRUE(engine.getSellBook().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
     EXPECT_TRUE(engine.getBuyBook().empty());
 }
 
@@ -126,5 +126,5 @@ TEST_F(BestMatchingBySideTest, NoMatchStoresIncomingOrderInOwnBook) {
     ASSERT_EQ(engine.getBuyBook().priceLevelCount(), 1U);
     ASSERT_EQ(levelAt(engine.getBuyBook(), 95).size(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyBook(), 95).front(), 1U);
-    EXPECT_TRUE(engine.getSellBook().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
 }

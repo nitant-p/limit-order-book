@@ -30,7 +30,7 @@ TEST_F(OrderIdBehaviorTest, EngineAssignsMonotonicIdsAcrossAllIncomingOrders) {
     ASSERT_EQ(levelAt(engine.getBuyOrders(), 100).size(), 1U);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).front(), 3U);
 
-    EXPECT_TRUE(engine.getSellBook().empty());
+    EXPECT_TRUE(engine.getSellOrders().empty());
 }
 
 TEST_F(OrderIdBehaviorTest, IdUniquenessPreservedAfterCancelAndNewOrder) {

@@ -118,7 +118,7 @@ const OrderBookSide& MatchingEngine::getBuyBook() const {
     return this->buyBook;
 }
 
-const OrderBookSide& MatchingEngine::getSellBook() const {
+const OrderBookSide& MatchingEngine::getSellOrders() const {
     return this->sellBook;
 }
 
@@ -183,25 +183,22 @@ vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
 
 vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
     vector<Trade> tradeList;
-    while (newOrder.quantity > 0 and !this->buyBook.empty()) {
-        auto best = this->buyBook.bestPrice();
-        if (!best) return;
-        int bestBuyPrice = *best;
 
-        if (!canContinueAgainstPrice(newOrder, bestBuyPrice)) break;
+    auto best = this->buyBook.bestPrice();
+    if (!best) return tradeList;
+    int bestBuyPrice = *best;
 
-        deque<uint64_t>* buyQueue = this->buyBook.findLevel(bestBuyPrice);
-        while (newOrder.quantity > 0 and buyQueue->empty()) {
-            uint64_t id = buyQueue->front();
-            Order& currBuyOrder = this->idToOrderMap[id];
-            cout << "Matched with buy order: " << currBuyOrder << endl;
-            Trade t = this->processMatchedOrders(newOrder, currBuyOrder,  currBuyOrder.id, newOrder.id);
-            tradeList.push_back(t);
+    while (newOrder.quantity > 0 and canContinueAgainstPrice(newOrder, bestBuyPrice)) {
+        const Order* currBuyOrder = buyBook.getBestOrder();
+        if (currBuyOrder == nullptr) break;
+        
+        cout << "Matched with buy order: " << *currBuyOrder << endl;
+        Trade t = this->processMatchedOrders(newOrder, *currBuyOrder, currBuyOrder->id, newOrder.id, sellBook);
+        tradeList.push_back(t);
 
-            if (currBuyOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, *buyQueue);
-        }
-
-        buyBook.removeLevelIfEmpty(bestBuyPrice);
+        best = this->buyBook.bestPrice();
+        if (!best) break;
+        bestBuyPrice = *best;
     }
 
     if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::SELL, newOrder);
