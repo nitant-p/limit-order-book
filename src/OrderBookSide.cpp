@@ -35,28 +35,67 @@ std::optional<int> OrderBookSide::bestPrice() const {
 }
 
 void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, int quantity) {
-    if (idToOrderNodePtr.contains(orderId)) return;
+    if (orderNodesById_.contains(orderId) || side != this->side_) return;
 
     Order order(orderId, side, type, price, quantity);
-    auto ptr = priceToLevels_.find(price);
-    if (ptr == priceToLevels_.end()) {
-        // insert at start
-        OrderNode oNode(order, nullptr, nullptr);
-        PriceLevel priceLevel(oNode, oNode);
-    } else {
-        // join at end
+    auto priceToLevelPtr = priceToLevels_.find(price);
+    auto newNode = std::make_unique<OrderNode>(OrderNode{order, nullptr, nullptr});
+    
+    OrderNode* nodePtr = newNode.get();
+    orderNodesById_[orderId] = move(newNode);
 
+    if (priceToLevelPtr == priceToLevels_.end()) {
+        // make new level
+        priceToLevels_[price] = PriceLevel{nodePtr, nodePtr, 1, static_cast<uint64_t>(nodePtr->order.quantity)};
+    } else {
+        // join at end, update end
+        auto end = priceToLevelPtr->second.end;
+        end->next = nodePtr;
+        nodePtr->prev = end;
+        priceToLevelPtr->second.end = nodePtr;
+        ++priceToLevelPtr->second.orderCount;
+        priceToLevelPtr->second.totalQuantity += nodePtr->order.quantity;
     }
-    this->priceToLevels_[price].push_back(orderId);
 }
 
-const deque<uint64_t>* OrderBookSide::findLevel(int price) const {
+bool OrderBookSide::doesOrderExist(uint64_t orderId) const {
+    auto it = orderNodesById_.find(orderId);
+    return it != orderNodesById_.end(); 
+}
+
+void OrderBookSide::deleteOrderById(uint64_t id) {
+    if (!doesOrderExist(id)) return;
+
+    auto nodePtr = orderNodesById_[id].get();
+    // get prev and next
+    auto prev = nodePtr->prev;
+    auto next = nodePtr->next;
+
+    // unlink
+    if (prev != nullptr) prev->next = next;
+    if (next != nullptr) next->prev = prev;
+
+    PriceLevel& priceLevel = priceToLevels_[nodePtr->order.price];
+    if (priceLevel.head == nodePtr) priceLevel.head = nodePtr->next;
+    if (priceLevel.end == nodePtr) priceLevel.end = nodePtr->prev;
+
+    --priceLevel.orderCount;
+    priceLevel.totalQuantity -= nodePtr->order.quantity;
+
+    // delete empty price level
+    if (priceLevel.head == nullptr && priceLevel.end == nullptr) priceToLevels_.erase(nodePtr->order.price);
+
+    // finally delete order
+    orderNodesById_.erase(id);
+}
+
+const PriceLevel* OrderBookSide::findLevel(int price) const {
     auto it = priceToLevels_.find(price);
     if (it == priceToLevels_.end()) return nullptr;
     return &it->second;
 }
 
-deque<uint64_t>* OrderBookSide::findLevel(int price) {
+PriceLevel* OrderBookSide::findLevel(int price) {
     auto it = priceToLevels_.find(price);
     if (it == priceToLevels_.end()) return nullptr;
     return &it->second;
@@ -64,8 +103,8 @@ deque<uint64_t>* OrderBookSide::findLevel(int price) {
 
 void OrderBookSide::removeLevelIfEmpty(int price) {
     auto it = priceToLevels_.find(price);
-    // if does not exist or not empty. do nothing
-    if (it == priceToLevels_.end() or !it->second.empty()) return;
+    // if does not exist or not empty, do nothing
+    if (it == priceToLevels_.end() or it->second.head != nullptr) return;
 
     priceToLevels_.erase(it);
 }
@@ -73,50 +112,25 @@ void OrderBookSide::removeLevelIfEmpty(int price) {
 size_t OrderBookSide::orderCountAtPrice(int price) const {
     auto it = priceToLevels_.find(price);
     if (it == priceToLevels_.end()) return 0;
-    else return it->second.size();
+    else return it->second.orderCount;
 }
 
-uint64_t OrderBookSide::volumeAtPrice(int price, const std::unordered_map<uint64_t, Order>& ordersById) const {
-    const deque<uint64_t>* ordersAtLevel = findLevel(price);
-    if (ordersAtLevel == nullptr) return 0;
-
-    uint64_t quantitySum = 0;
-    for (auto it = ordersAtLevel->begin(); it != ordersAtLevel->end(); ++it) {
-        auto o = ordersById.find(*it);
-        if (o != ordersById.end()) quantitySum += static_cast<uint64_t>(o->second.quantity);
-    }
-    return quantitySum;
+uint64_t OrderBookSide::volumeAtPrice(int price) const {
+    const PriceLevel* ptr = findLevel(price);
+    if (ptr == nullptr) return 0;
+    return ptr->totalQuantity;
 }
 
-vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels, const unordered_map<uint64_t, Order>& ordersById) const {
+vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels) const {
     vector<LevelSnapshot> levelSnapshots;
     if (side_ == Side::BUY) {
         for (const auto& l : this->priceToLevels_ | ranges::views::reverse) {
-            uint64_t totalQuantity = 0;
-            const size_t orderCount = l.second.size();
-            for (auto it = l.second.begin(); it != l.second.end(); ++it) {
-                const uint64_t& orderId = *it;
-                auto orderEntry = ordersById.find(orderId);
-                if (orderEntry == ordersById.end()) continue;
-                const Order& order = orderEntry->second;
-                totalQuantity += order.quantity;
-            }
-            levelSnapshots.push_back({l.first, totalQuantity, orderCount});
+            levelSnapshots.push_back({l.first, l.second.totalQuantity, l.second.orderCount});
             if (levelSnapshots.size() == levels) break;
         }
     } else {
         for (auto it = this->priceToLevels_.begin(); it != this->priceToLevels_.end(); ++it) {
-            const deque<uint64_t>& orderQueue = it->second;
-            uint64_t totalQuantity = 0;
-            const size_t orderCount = orderQueue.size();
-            for (auto qIt = orderQueue.begin(); qIt != orderQueue.end(); ++qIt) {
-                const uint64_t& orderId = *qIt;
-                auto orderEntry = ordersById.find(orderId);
-                if (orderEntry == ordersById.end()) continue;
-                const Order& order = orderEntry->second;
-                totalQuantity += order.quantity;
-            }
-            levelSnapshots.push_back({it->first, totalQuantity, orderCount});
+            levelSnapshots.push_back({it->first, it->second.totalQuantity, it->second.orderCount});
             if (levelSnapshots.size() == levels) break;
         }
     }
@@ -124,11 +138,14 @@ vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels, const unordered_map
     return levelSnapshots;
 }
 
-vector<uint64_t> OrderBookSide::getAllOrderIds() {
+vector<uint64_t> OrderBookSide::getAllOrderIds() const {
     vector<uint64_t> orderIds;
-    for (auto it = priceToLevels_.begin(); it != priceToLevels_.end(); ++it) {
-        deque<uint64_t> queue = it->second;
-        for (auto qIt = queue.begin(); qIt != queue.end(); ++qIt) orderIds.push_back(*qIt);
+    for (const auto& [orderId, node] : orderNodesById_) {
+        orderIds.push_back(orderId);
     }
     return orderIds;
+}
+
+size_t OrderBookSide::orderCount() const {
+    return orderNodesById_.size();
 }
