@@ -10,25 +10,25 @@
 
 class MatchingEngine {
 public:
-    MatchingEngine(OrderBookSide buyOrders, OrderBookSide sellOrders);
+    MatchingEngine(OrderBookSide buyBook, OrderBookSide sellBook);
 
     std::vector<Trade> processOrder(Side side, Type type, int price, int quantity);
     void printBook();
-    const OrderBookSide& getBuyOrders() const;
-    const OrderBookSide& getSellOrders() const;
+    const OrderBookSide& getBuyBook() const;
+    const OrderBookSide& getSellBook() const;
     bool cancelOrder(uint64_t cancelId);
     bool modifyOrder(uint64_t orderId, int newPrice, int newQuantity);
 
 private:
     uint64_t nextOrderId {1};
-    std::unordered_map<uint64_t, Order> idToOrderMap;
-    OrderBookSide buyOrders;
-    OrderBookSide sellOrders;
+
+    OrderBookSide buyBook;
+    OrderBookSide sellBook;
     std::vector<Trade> tradeHistory;
     
 
     // void removeEmptyOrders(Side side);
-    Trade processMatchedOrders(Order& incomingOrder, Order& restingOrder, uint64_t buyId, uint64_t sellId);
+    Trade processMatchedOrders(Order& incomingOrder, const Order& restingOrder, uint64_t buyId, uint64_t sellId, OrderBookSide& book);
     uint64_t getAndIncrementNextOrderId();
     void deleteEmptyOrderInOrder(uint64_t orderId, std::deque<uint64_t>& orderQueue);
     void removeEmptyOrderQueuesByPrice(std::map<int, std::deque<uint64_t>>& map, int price);

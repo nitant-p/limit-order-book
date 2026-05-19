@@ -9,9 +9,9 @@
 
 using namespace std;
 
-MatchingEngine::MatchingEngine(OrderBookSide buyOrders,
-                               OrderBookSide sellOrders)
-    : buyOrders(buyOrders), sellOrders(sellOrders) {
+MatchingEngine::MatchingEngine(OrderBookSide buyBook,
+                               OrderBookSide sellBook)
+    : buyBook(buyBook), sellBook(sellBook) {
 }
 
 vector<Trade> MatchingEngine::processOrder(Side side, Type type, int price, int quantity) {
@@ -23,20 +23,20 @@ vector<Trade> MatchingEngine::processOrder(Side side, Type type, int price, int 
 }
 
 void MatchingEngine::printBook() {
-    if (buyOrders.empty()) {
+    if (buyBook.empty()) {
         cout << "There are no buy orders." << endl;
     } else {
         cout << "These are the following buy orders:" << endl;
-        vector<uint64_t> orderIds = buyOrders.getAllOrderIds();
+        vector<uint64_t> orderIds = buyBook.getAllOrderIds();
         for (auto it = orderIds.begin(); it != orderIds.end(); ++it) cout << this->idToOrderMap[*it] << endl;
 
     }
 
-     if (sellOrders.empty()) {
+     if (sellBook.empty()) {
         cout << "There are no sell orders." << endl;
     } else {
         cout << "These are the following sell orders:" << endl;
-        vector<uint64_t> orderIds = sellOrders.getAllOrderIds();
+        vector<uint64_t> orderIds = sellBook.getAllOrderIds();
         for (auto it = orderIds.begin(); it != orderIds.end(); ++it) cout << this->idToOrderMap[*it] << endl;
 
     }
@@ -58,22 +58,25 @@ void MatchingEngine::printBook() {
 //     };
 
 //     if (side == Side::BUY) {
-//         erase_if(this->buyOrders, isEmpty);
+//         erase_if(this->buyBook, isEmpty);
 //     } else {
-//         erase_if(this->sellOrders, isEmpty);
+//         erase_if(this->sellBook, isEmpty);
 //     }
 // }
 
 Trade MatchingEngine::processMatchedOrders(
     Order& incomingOrder,
-    Order& restingOrder,
+    const Order& restingOrder,
     uint64_t buyId,
-    uint64_t sellId
+    uint64_t sellId,
+    OrderBookSide& book
     ) {
     const int minQuantity = min(incomingOrder.quantity, restingOrder.quantity);
     cout << "Quantity traded: " << minQuantity << endl;
     incomingOrder.quantity -= minQuantity;
-    restingOrder.quantity -= minQuantity;
+
+    auto result = book.reduceOrderQuantity(restingOrder.id, minQuantity);
+    // TODO: add exception if result is false
 
     const int priceTraded = restingOrder.price;
     cout << "Price traded at: " << priceTraded << endl;
@@ -92,8 +95,8 @@ bool MatchingEngine::cancelOrder(uint64_t id) {
 
     deque<uint64_t>* queue =
     side == Side::BUY
-        ? this->buyOrders.findLevel(price)
-        : this->sellOrders.findLevel(price);
+        ? this->buyBook.findLevel(price)
+        : this->sellBook.findLevel(price);
 
     for (auto it = queue->begin(); it != queue->end(); ++it) {
         if (*it == id) {
@@ -104,19 +107,19 @@ bool MatchingEngine::cancelOrder(uint64_t id) {
     }
 
     side == Side::BUY
-        ? buyOrders.removeLevelIfEmpty(price)
-        : sellOrders.removeLevelIfEmpty(price);
+        ? buyBook.removeLevelIfEmpty(price)
+        : sellBook.removeLevelIfEmpty(price);
 
     return true;
 }
 
 
-const OrderBookSide& MatchingEngine::getBuyOrders() const {
-    return this->buyOrders;
+const OrderBookSide& MatchingEngine::getBuyBook() const {
+    return this->buyBook;
 }
 
-const OrderBookSide& MatchingEngine::getSellOrders() const {
-    return this->sellOrders;
+const OrderBookSide& MatchingEngine::getSellBook() const {
+    return this->sellBook;
 }
 
 uint64_t MatchingEngine::getAndIncrementNextOrderId() {
@@ -137,11 +140,10 @@ void MatchingEngine::removeEmptyOrderQueuesByPrice(map<int, deque<uint64_t>>& ma
 
 void MatchingEngine::addNewOrder(Side side, Order& newOrder) {
     uint64_t id = newOrder.id;
-    this->idToOrderMap[id] = newOrder;
     if (side == Side::BUY) {
-        this->buyOrders.addOrder(newOrder.price, id);
+        this->buyBook.addOrder(id, newOrder.side, newOrder.type, newOrder.price, newOrder.quantity);
     } else {
-        this->sellOrders.addOrder(newOrder.price, id);
+        this->sellBook.addOrder(id, newOrder.side, newOrder.type, newOrder.price, newOrder.quantity);
     }
 }
 
@@ -155,24 +157,23 @@ bool MatchingEngine::canContinueAgainstPrice(const Order& incoming, int opposing
 vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
     vector<Trade> tradeList;
 
-    auto best = this->sellOrders.bestPrice();
-    if (!best) return;
+    auto best = this->sellBook.bestPrice();
+    if (!best) return tradeList;
     int bestSellPrice = *best;
 
-    auto sellQueuePtr = this->sellOrders.findLevel(bestSellPrice);
+    auto sellQueuePtr = this->sellBook.findLevel(bestSellPrice);
 
     while (newOrder.quantity > 0 and canContinueAgainstPrice(newOrder, bestSellPrice)) {
-        deque<uint64_t>* sellQueue = this->sellOrders.findLevel(bestSellPrice);
-        if (sellQueue == nullptr) break;
-        while (newOrder.quantity > 0 and !sellQueue->empty()) {
-            uint64_t id = sellQueue->front();
-            Order& currSellOrder = this->idToOrderMap[id];
-            cout << "Matched with sell order: " << currSellOrder << endl;
-            Trade t = this->processMatchedOrders(newOrder, currSellOrder, newOrder.id, currSellOrder.id);
-            tradeList.push_back(t);
-        }
+        const Order* currSellOrder = sellBook.getBestOrder();
+        if (currSellOrder == nullptr) break;
+        
+        cout << "Matched with sell order: " << *currSellOrder << endl;
+        Trade t = this->processMatchedOrders(newOrder, *currSellOrder, newOrder.id, currSellOrder->id, sellBook);
+        tradeList.push_back(t);
 
-        sellOrders.removeLevelIfEmpty(bestSellPrice);
+        best = this->sellBook.bestPrice();
+        if (!best) break;
+        bestSellPrice = *best;
     }
 
     if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::BUY, newOrder);
@@ -182,14 +183,14 @@ vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
 
 vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
     vector<Trade> tradeList;
-    while (newOrder.quantity > 0 and !this->buyOrders.empty()) {
-        auto best = this->buyOrders.bestPrice();
+    while (newOrder.quantity > 0 and !this->buyBook.empty()) {
+        auto best = this->buyBook.bestPrice();
         if (!best) return;
         int bestBuyPrice = *best;
 
         if (!canContinueAgainstPrice(newOrder, bestBuyPrice)) break;
 
-        deque<uint64_t>* buyQueue = this->buyOrders.findLevel(bestBuyPrice);
+        deque<uint64_t>* buyQueue = this->buyBook.findLevel(bestBuyPrice);
         while (newOrder.quantity > 0 and buyQueue->empty()) {
             uint64_t id = buyQueue->front();
             Order& currBuyOrder = this->idToOrderMap[id];
@@ -200,7 +201,7 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
             if (currBuyOrder.quantity == 0) this->deleteEmptyOrderInOrder(id, *buyQueue);
         }
 
-        buyOrders.removeLevelIfEmpty(bestBuyPrice);
+        buyBook.removeLevelIfEmpty(bestBuyPrice);
     }
 
     if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::SELL, newOrder);
@@ -245,8 +246,8 @@ bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity
     }
 
     // delete queue if empty
-    if (orderPtr->side == Side::BUY) buyOrders.removeLevelIfEmpty(orderPtr->price)
-    else sellOrders.removeLevelIfEmpty(orderPtr->price);
+    if (orderPtr->side == Side::BUY) buyBook.removeLevelIfEmpty(orderPtr->price)
+    else sellBook.removeLevelIfEmpty(orderPtr->price);
 
 
     // modify order
@@ -270,15 +271,15 @@ std::deque<uint64_t>* MatchingEngine::getOrderQueueByOrderId(uint64_t orderId) {
     }
 
     OrderBookSide* orderBookPtr = nullptr;
-    if (orderPtr->side == Side::BUY) orderBookPtr = &this->buyOrders;
-    else orderBookPtr = &this->sellOrders;
+    if (orderPtr->side == Side::BUY) orderBookPtr = &this->buyBook;
+    else orderBookPtr = &this->sellBook;
 
     auto it = orderBookPtr->findLevel(orderPtr->price);
     return it;
 }
 
 void MatchingEngine::saveOrderToBook(const Order& order) {
-    if (order.side == Side::BUY) this->buyOrders.addOrder(order.price, order.id);
-    else this->sellOrders.addOrder(order.price, order.id);
+    if (order.side == Side::BUY) this->buyBook.addOrder(order.price, order.id);
+    else this->sellBook.addOrder(order.price, order.id);
 }
 

@@ -26,13 +26,13 @@ TEST_F(ModifyOrderTest, ModifyMissingOrderReturnsFalseAndDoesNotMutateBook) {
     engine.processOrder(Side::SELL, Type::LIMIT, 105, 6); // id 2
 
     const auto beforeBuy100 = levelAt(engine.getBuyOrders(), 100);
-    const auto beforeSell105 = levelAt(engine.getSellOrders(), 105);
+    const auto beforeSell105 = levelAt(engine.getSellBook(), 105);
 
     const bool ok = engine.modifyOrder(999, 101, 10);
 
     EXPECT_FALSE(ok);
     EXPECT_EQ(levelAt(engine.getBuyOrders(), 100), beforeBuy100);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 105), beforeSell105);
+    EXPECT_EQ(levelAt(engine.getSellBook(), 105), beforeSell105);
 }
 
 TEST_F(ModifyOrderTest, ModifyRejectsNonPositivePriceOrQuantity) {
@@ -131,10 +131,10 @@ TEST_F(ModifyOrderTest, ModifyOneSideDoesNotMutateOppositeSideBook) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 5);   // id 1
     engine.processOrder(Side::SELL, Type::LIMIT, 110, 7);  // id 2
 
-    const auto beforeSell110 = levelAt(engine.getSellOrders(), 110);
+    const auto beforeSell110 = levelAt(engine.getSellBook(), 110);
 
     const bool ok = engine.modifyOrder(1, 101, 5);
 
     EXPECT_TRUE(ok);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 110), beforeSell110);
+    EXPECT_EQ(levelAt(engine.getSellBook(), 110), beforeSell110);
 }

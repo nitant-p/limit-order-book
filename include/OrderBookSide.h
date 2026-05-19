@@ -55,6 +55,8 @@ public:
     bool doesLevelExist(int price) const;
     const PriceLevel* findLevel(int price) const;
     PriceLevel* findLevel(int price);
+    PriceLevel* findLevel(int price);
+
 
     // Price level cleanup
     void removeLevelIfEmpty(int price);
@@ -67,6 +69,10 @@ public:
     std::vector<LevelSnapshot> getDepth(size_t levels) const;
     std::vector<uint64_t> getAllOrderIds() const;
     std::vector<uint64_t> getOrderIdsAtPrice(int price) const;
+
+    const Order* getBestOrder() const;
+    void removeOrderIfFilled(uint64_t id);
+    bool reduceOrderQuantity(uint64_t id, int quantity);
 
 private:
     Side side_;

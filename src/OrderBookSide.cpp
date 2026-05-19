@@ -149,3 +149,43 @@ vector<uint64_t> OrderBookSide::getAllOrderIds() const {
 size_t OrderBookSide::orderCount() const {
     return orderNodesById_.size();
 }
+
+const Order* OrderBookSide::getBestOrder() const {
+    auto best = bestPrice();
+    if (!best) return nullptr;
+
+    const PriceLevel* level = findLevel(*best);
+    if (level == nullptr or level->head == nullptr) return nullptr;
+
+    return &level->head->order;
+}
+
+void OrderBookSide::removeOrderIfFilled(uint64_t id) {
+    auto it = orderNodesById_.find(id);
+    if (it == orderNodesById_.end()) return;
+
+    // check if order is empty and needs to be removed
+    auto nodePtr = it->second.get();
+    if (nodePtr->order.quantity > 0) return;
+
+    deleteOrderById(nodePtr->order.id);
+}
+
+bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
+    auto it = orderNodesById_.find(id);
+    if (it == orderNodesById_.end()) return false;
+
+    Order& order = it->second.get()->order;
+
+    if (delta > order.quantity) return false;
+    order.quantity -= delta;
+
+    if (order.quantity == 0) {
+        deleteOrderById(order.id);
+        return true;
+    }
+
+    // reduce price level data
+    PriceLevel& level = *findLevel(order.price);
+    level.totalQuantity -= delta;
+}
