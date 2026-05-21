@@ -126,12 +126,6 @@ uint64_t MatchingEngine::getAndIncrementNextOrderId() {
     return this->nextOrderId++;
 }
 
-void MatchingEngine::deleteEmptyOrderInOrder(uint64_t orderId, deque<uint64_t>& orderQueue) {
-    // TODO: fix
-    this->idToOrderMap.erase(orderId);
-    if (!orderQueue.empty()) orderQueue.pop_front();
-}
-
 void MatchingEngine::removeEmptyOrderQueuesByPrice(map<int, deque<uint64_t>>& map, int price) {
     if (map.count(price) and map[price].empty()) {
         map.erase(price);
@@ -145,6 +139,8 @@ void MatchingEngine::addNewOrder(Side side, Order& newOrder) {
     } else {
         this->sellBook.addOrder(id, newOrder.side, newOrder.type, newOrder.price, newOrder.quantity);
     }
+
+    orderIdSide[newOrder.id] = newOrder.side;
 }
 
 
@@ -176,8 +172,6 @@ vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
         bestSellPrice = *best;
     }
 
-    if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::BUY, newOrder);
-
     return tradeList;
 }
 
@@ -207,11 +201,13 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
 }
 
 bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity) {
-    Order* orderPtr = this->getOrderById(orderId);
+    const Order* orderPtr = this->getOrderById(orderId);
     if (orderPtr == nullptr) {
         cout << "Order ID does not exist" << endl;
         return false;
     }
+
+    bool loseQueuePos = true;
 
     if (newQuantity <= 0 or newPrice <= 0) {
         cout << "Quantity and price must be positive." << endl;
@@ -222,41 +218,37 @@ bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity
     } else if (newQuantity < orderPtr->quantity and newPrice == orderPtr->price) {
         // can keep queue position
         cout << "Only quantity has reduced. Order can keep its queue position." << endl;
-        orderPtr->quantity = newQuantity;
-        return true;
-    }
+        loseQueuePos = false;
+    } else cout << "Order must be reinserted into queue." << endl;
 
-    cout << "Order must be reinserted into queue." << endl;
-
-    deque<uint64_t>* queuePtr = this->getOrderQueueByOrderId(orderId);
-    if (queuePtr == nullptr) {
-        cout << "Could not find queue for this order." << endl;
-        return false;
-    }
-
-    for (auto it = queuePtr->begin(); it != queuePtr->end(); ++it) {
-        if (*it == orderId) {
-            // delete from queue
-            queuePtr->erase(it);
-            break;
-        }
-    }
-
-    // delete queue if empty
-    if (orderPtr->side == Side::BUY) buyBook.removeLevelIfEmpty(orderPtr->price)
-    else sellBook.removeLevelIfEmpty(orderPtr->price);
+    
+    // construct dummy updated order
+    Order updatedOrder{orderId, orderPtr->side, orderPtr->type, newPrice, newQuantity};
 
 
-    // modify order
-    orderPtr->price = newPrice;
-    orderPtr->quantity = newQuantity;
-    saveOrderToBook(*orderPtr);
-
-    return true;
+    return orderPtr->side == Side::BUY 
+        ? buyBook.modifyOrder(updatedOrder, loseQueuePos)
+        : sellBook.modifyOrder(updatedOrder, loseQueuePos);
 }
 
-void MatchingEngine::saveOrderToBook(const Order& order) {
-    if (order.side == Side::BUY) this->buyBook.addOrder(order);
-    else this->sellBook.addOrder(order);
+void MatchingEngine::saveOrderId(uint64_t id, Side side) {
+    orderIdSide[id] = side;
 }
 
+const Order* MatchingEngine::getOrderById(uint64_t id) {
+    auto ptr = orderIdSide.find(id);
+    if (ptr == orderIdSide.end()) return nullptr;
+
+    Side side = ptr->second;
+    const Order* order = side == Side::BUY 
+        ? buyBook.findOrder(id)
+        : sellBook.findOrder(id);
+
+    if (order == nullptr) {
+        // invalid state/stale
+        orderIdSide.erase(ptr);
+        return nullptr;
+    }
+
+    return order;
+}

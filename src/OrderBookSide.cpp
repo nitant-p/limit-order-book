@@ -196,7 +196,7 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
     return true;
 }
 
-Order* OrderBookSide::findOrder(uint64_t orderId) {
+Order* OrderBookSide::findOrderMutable(uint64_t orderId) {
     auto it = orderNodesById_.find(orderId);
     if (it == orderNodesById_.end()) return nullptr;
     return &it->second.get()->order;
@@ -213,7 +213,7 @@ const Order* OrderBookSide::findOrder(uint64_t orderId) const {
 bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
     if (updatedOrder.quantity <= 0) return false;
 
-    Order* orderPtr = findOrder(updatedOrder.id);
+    Order* orderPtr = findOrderMutable(updatedOrder.id);
     if (orderPtr == nullptr) return false;
 
     PriceLevel* originalLevel = findLevel(orderPtr->price);
@@ -222,14 +222,13 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
     int originalQuantity = orderPtr->quantity;
     int originalPrice = orderPtr->price;
 
-    int delta = updatedOrder.quantity - originalQuantity;
-
     if (!loseQueuePos and originalPrice == updatedOrder.price) {
         // only update order and level quantity
         orderPtr->quantity = updatedOrder.quantity;
-        originalLevel->totalQuantity += delta;
+        originalLevel->totalQuantity -= originalQuantity;
+        originalLevel->totalQuantity += updatedOrder.quantity;
         return true;
-    }
+    }    
 
     auto ptr = orderNodesById_.find(orderPtr->id);
     if (ptr == orderNodesById_.end()) return false;
@@ -249,24 +248,31 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
     if (originalLevel->end == node) originalLevel->end = prev;
 
     if (originalPrice == updatedOrder.price) {
+        orderPtr->quantity = updatedOrder.quantity;
         // move to back of queue
+        // join node at the end
         node->prev = originalLevel->end;
+        if (originalLevel->end != nullptr) originalLevel->end->next = node;
+
+        // update level end
         originalLevel->end = node;
-        originalLevel->totalQuantity += delta;
+        // check level head is not null
+        if (originalLevel->head == nullptr) originalLevel->head = node;
+
+        // update quantity
+        originalLevel->totalQuantity -= originalQuantity;
+        originalLevel->totalQuantity += updatedOrder.quantity;
         return true;
     }
 
     // totally remove and add to new level
     originalLevel->totalQuantity -= originalQuantity;
     --originalLevel->orderCount;
-
-
     removeLevelIfEmpty(originalPrice);
 
     // update price and quantity
     orderPtr->price = updatedOrder.price;
     orderPtr->quantity = updatedOrder.quantity;
-
 
     PriceLevel* newLevel = findLevel(orderPtr->price);
 
@@ -277,22 +283,24 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
         return true;
     }
 
-    OrderNode* levelEnd = newLevel->end;
-    OrderNode* levelHead = newLevel->head;
+    if (newLevel->orderCount == 0) {
+        node->prev = nullptr;
+        node->next = nullptr;
 
-    if (levelEnd == nullptr or levelHead == nullptr) {
-        // empty
         newLevel->head = node;
         newLevel->end = node;
         newLevel->orderCount = 1;
-        newLevel->totalQuantity = orderPtr->quantity;
-    } else {
-        levelEnd->next = node;
-        node->prev = levelEnd;
-        ++newLevel->orderCount;
-        newLevel->totalQuantity += orderPtr->quantity;
-        newLevel->end = node;
+        newLevel->totalQuantity = updatedOrder.quantity;
+
+        return true;
     }
+
+    OrderNode* levelEnd = newLevel->end;
+    levelEnd->next = node;
+    node->prev = levelEnd;
+    ++newLevel->orderCount;
+    newLevel->totalQuantity += orderPtr->quantity;
+    newLevel->end = node;
 
     return true;
 }

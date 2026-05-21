@@ -26,6 +26,7 @@ private:
     OrderBookSide sellBook;
     std::vector<Trade> tradeHistory;
     
+    unordered_map<uint64_t, Side> orderIdSide;
 
     // void removeEmptyOrders(Side side);
     Trade processMatchedOrders(Order& incomingOrder, const Order& restingOrder, uint64_t buyId, uint64_t sellId, OrderBookSide& book);
@@ -38,8 +39,8 @@ private:
     std::vector<Trade> processBuyOrder(Order &newOrder);
     std::vector<Trade> processSellOrder(Order &newOrder);
 
-    Order* getOrderById(uint64_t orderId);
+    const Order* getOrderById(uint64_t orderId);
     std::deque<uint64_t>* getOrderQueueByOrderId(uint64_t orderId);
 
-    void saveOrderToBook(const Order& order);
+    void saveOrderId(uint64_t id, Side side);
 };
