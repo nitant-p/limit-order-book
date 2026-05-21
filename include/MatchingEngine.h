@@ -18,7 +18,7 @@ public:
     const OrderBookSide& getSellOrders() const;
     bool cancelOrder(uint64_t cancelId);
     bool modifyOrder(uint64_t orderId, int newPrice, int newQuantity);
-
+    
 private:
     uint64_t nextOrderId {1};
 
@@ -26,13 +26,11 @@ private:
     OrderBookSide sellBook;
     std::vector<Trade> tradeHistory;
     
-    unordered_map<uint64_t, Side> orderIdSide;
+    std::unordered_map<uint64_t, Side> orderIdSide;
 
     // void removeEmptyOrders(Side side);
     Trade processMatchedOrders(Order& incomingOrder, const Order& restingOrder, uint64_t buyId, uint64_t sellId, OrderBookSide& book);
     uint64_t getAndIncrementNextOrderId();
-    void deleteEmptyOrderInOrder(uint64_t orderId, std::deque<uint64_t>& orderQueue);
-    void removeEmptyOrderQueuesByPrice(std::map<int, std::deque<uint64_t>>& map, int price);
     void addNewOrder(Side side, Order& newOrder);
     bool static canContinueAgainstPrice(const Order& incoming, int opposingPrice);
 
@@ -40,7 +38,6 @@ private:
     std::vector<Trade> processSellOrder(Order &newOrder);
 
     const Order* getOrderById(uint64_t orderId);
-    std::deque<uint64_t>* getOrderQueueByOrderId(uint64_t orderId);
 
     void saveOrderId(uint64_t id, Side side);
 };

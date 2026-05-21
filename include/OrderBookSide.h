@@ -50,14 +50,12 @@ public:
     void addOrder(uint64_t orderId, Side side, Type type, int price, int quantity);
     void addOrder(Order& order);
 
-    void deleteOrderById(uint64_t orderId);
+    bool deleteOrderById(uint64_t orderId);
 
     // Price level lookup
     bool doesLevelExist(int price) const;
     const PriceLevel* findLevel(int price) const;
     PriceLevel* findLevel(int price);
-    PriceLevel* findLevel(int price);
-
 
     // Price level cleanup
     void removeLevelIfEmpty(int price);
@@ -76,6 +74,7 @@ public:
     bool reduceOrderQuantity(uint64_t id, int quantity);
     bool modifyOrder(Order updatedOrder, bool loseQueuePos);
 
+    void printBook();
 private:
     Order* findOrderMutable(uint64_t orderId);
 

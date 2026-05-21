@@ -67,8 +67,8 @@ bool OrderBookSide::doesOrderExist(uint64_t orderId) const {
     return it != orderNodesById_.end(); 
 }
 
-void OrderBookSide::deleteOrderById(uint64_t id) {
-    if (!doesOrderExist(id)) return;
+bool OrderBookSide::deleteOrderById(uint64_t id) {
+    if (!doesOrderExist(id)) return false;
 
     auto nodePtr = orderNodesById_[id].get();
     // get prev and next
@@ -87,10 +87,12 @@ void OrderBookSide::deleteOrderById(uint64_t id) {
     priceLevel.totalQuantity -= nodePtr->order.quantity;
 
     // delete empty price level
-    if (priceLevel.head == nullptr && priceLevel.end == nullptr) priceToLevels_.erase(nodePtr->order.price);
+    removeLevelIfEmpty(nodePtr->order.price);
 
     // finally delete order
     orderNodesById_.erase(id);
+
+    return false;
 }
 
 const PriceLevel* OrderBookSide::findLevel(int price) const {
@@ -303,4 +305,10 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
     newLevel->end = node;
 
     return true;
+}
+
+void OrderBookSide::printBook() {
+    for (auto it = orderNodesById_.begin(); it != orderNodesById_.end(); ++it) {
+        cout << it->second.get()->order << endl;
+    }
 }

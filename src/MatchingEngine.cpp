@@ -27,18 +27,14 @@ void MatchingEngine::printBook() {
         cout << "There are no buy orders." << endl;
     } else {
         cout << "These are the following buy orders:" << endl;
-        vector<uint64_t> orderIds = buyBook.getAllOrderIds();
-        for (auto it = orderIds.begin(); it != orderIds.end(); ++it) cout << this->idToOrderMap[*it] << endl;
-
+        buyBook.printBook();
     }
 
      if (sellBook.empty()) {
         cout << "There are no sell orders." << endl;
     } else {
         cout << "These are the following sell orders:" << endl;
-        vector<uint64_t> orderIds = sellBook.getAllOrderIds();
-        for (auto it = orderIds.begin(); it != orderIds.end(); ++it) cout << this->idToOrderMap[*it] << endl;
-
+        sellBook.printBook();
     }
 
     if (this->tradeHistory.empty()) {
@@ -87,30 +83,13 @@ Trade MatchingEngine::processMatchedOrders(
 }
 
 bool MatchingEngine::cancelOrder(uint64_t id) {
-    if (!this->idToOrderMap.contains(id)) return false;
+    const Order* order = getOrderById(id);
+    if (order == nullptr) return false;
+    
+    return order->side == Side::BUY
+        ? buyBook.deleteOrderById(id)
+        : sellBook.deleteOrderById(id);
 
-    Order& order = this->idToOrderMap[id];
-    Side side = order.side;
-    int price = order.price;
-
-    deque<uint64_t>* queue =
-    side == Side::BUY
-        ? this->buyBook.findLevel(price)
-        : this->sellBook.findLevel(price);
-
-    for (auto it = queue->begin(); it != queue->end(); ++it) {
-        if (*it == id) {
-           this->idToOrderMap.erase(id);
-           queue->erase(it);
-           break;
-        }
-    }
-
-    side == Side::BUY
-        ? buyBook.removeLevelIfEmpty(price)
-        : sellBook.removeLevelIfEmpty(price);
-
-    return true;
 }
 
 
@@ -124,12 +103,6 @@ const OrderBookSide& MatchingEngine::getSellOrders() const {
 
 uint64_t MatchingEngine::getAndIncrementNextOrderId() {
     return this->nextOrderId++;
-}
-
-void MatchingEngine::removeEmptyOrderQueuesByPrice(map<int, deque<uint64_t>>& map, int price) {
-    if (map.count(price) and map[price].empty()) {
-        map.erase(price);
-    }
 }
 
 void MatchingEngine::addNewOrder(Side side, Order& newOrder) {
