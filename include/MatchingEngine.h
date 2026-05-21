@@ -10,8 +10,6 @@
 
 class MatchingEngine {
 public:
-    MatchingEngine(OrderBookSide buyBook, OrderBookSide sellBook);
-
     std::vector<Trade> processOrder(Side side, Type type, int price, int quantity);
     void printBook();
     const OrderBookSide& getBuyBook() const;

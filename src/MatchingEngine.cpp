@@ -9,11 +9,6 @@
 
 using namespace std;
 
-MatchingEngine::MatchingEngine(OrderBookSide buyBook,
-                               OrderBookSide sellBook)
-    : buyBook(buyBook), sellBook(sellBook) {
-}
-
 vector<Trade> MatchingEngine::processOrder(Side side, Type type, int price, int quantity) {
     Order newOrder {this->getAndIncrementNextOrderId(), side, type, price, quantity};
     cout << "Processing order:" << newOrder << endl;
