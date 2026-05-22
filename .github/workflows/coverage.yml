@@ -4,8 +4,12 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: write
+
 jobs:
   coverage:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     env:
       CC: gcc
@@ -31,3 +35,64 @@ jobs:
             build-coverage/coverage/coverage_summary.txt
             build-coverage/coverage/*.gcov
           if-no-files-found: warn
+
+      - name: Build coverage badge payload
+        run: |
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import re
+
+          summary_path = pathlib.Path("build-coverage/coverage/coverage_summary.txt")
+          text = summary_path.read_text(encoding="utf-8")
+          matches = re.findall(r"Lines executed:([0-9]+(?:\.[0-9]+)?)% of ([0-9]+)", text)
+
+          weighted = 0.0
+          total_lines = 0
+          for pct_str, lines_str in matches:
+              pct = float(pct_str)
+              lines = int(lines_str)
+              weighted += pct * lines
+              total_lines += lines
+
+          coverage = (weighted / total_lines) if total_lines else 0.0
+
+          if coverage >= 90:
+              color = "brightgreen"
+          elif coverage >= 80:
+              color = "green"
+          elif coverage >= 70:
+              color = "yellowgreen"
+          elif coverage >= 60:
+              color = "yellow"
+          elif coverage >= 50:
+              color = "orange"
+          else:
+              color = "red"
+
+          payload = {
+              "schemaVersion": 1,
+              "label": "coverage",
+              "message": f"{coverage:.2f}%",
+              "color": color,
+          }
+
+          badge_path = pathlib.Path(".github/badges/coverage.json")
+          badge_path.parent.mkdir(parents=True, exist_ok=True)
+          badge_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          print(f"Coverage badge payload written to {badge_path}: {payload}")
+          PY
+
+      - name: Commit coverage badge payload
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        run: |
+          if git diff --quiet -- .github/badges/coverage.json; then
+            echo "Coverage badge is already up to date."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/badges/coverage.json
+          git commit -m "chore: update coverage badge payload"
+          git push

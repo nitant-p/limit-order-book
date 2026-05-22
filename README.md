@@ -1,6 +1,6 @@
 # Limit Order Book (C++)
 [![CI](https://github.com/nitant-p/order-book/actions/workflows/ci.yml/badge.svg)](https://github.com/nitant-p/order-book/actions/workflows/ci.yml)
-[![Coverage](https://github.com/nitant-p/order-book/actions/workflows/coverage.yml/badge.svg)](https://github.com/nitant-p/order-book/actions/workflows/coverage.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fnitant-p%2Forder-book%2Fmain%2F.github%2Fbadges%2Fcoverage.json)](https://github.com/nitant-p/order-book/actions/workflows/coverage.yml)
 
 High-performance C++ matching engine and order book implementation for exchange-style trade simulation.
 
