@@ -1,25 +1,17 @@
 #include "OrderBookSide.h"
+#include "TestHelpers.h"
 
 #include <gtest/gtest.h>
 
-#include <deque>
+#include <algorithm>
+#include <cstdint>
 #include <optional>
-#include <type_traits>
-#include <unordered_map>
 #include <vector>
 
 namespace {
 
-std::unordered_map<uint64_t, Order> makeOrders() {
-    return {
-        {1, Order{1, Side::BUY, Type::LIMIT, 100, 10}},
-        {2, Order{2, Side::BUY, Type::LIMIT, 100, 15}},
-        {3, Order{3, Side::BUY, Type::LIMIT, 101, 5}},
-        {4, Order{4, Side::SELL, Type::LIMIT, 103, 7}},
-        {5, Order{5, Side::SELL, Type::LIMIT, 104, 9}},
-        {6, Order{6, Side::SELL, Type::LIMIT, 104, 11}},
-    };
-}
+using test_helpers::expectLevelIntegrity;
+using test_helpers::levelIds;
 
 class OrderBookSideBuyTest : public ::testing::Test {
 protected:
@@ -31,157 +23,234 @@ protected:
     OrderBookSide side{Side::SELL};
 };
 
-TEST(OrderBookSideContract, MethodSignaturesAreAsExpected) {
-    static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().side()), Side>);
-    static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().empty()), bool>);
-    static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().priceLevelCount()), size_t>);
-    static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().bestPrice()), std::optional<int>>);
+} // namespace
 
-    static_assert(std::is_same_v<decltype(std::declval<OrderBookSide&>().addOrder(100, uint64_t{1})), void>);
-
-    static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().findLevel(100)), const std::deque<uint64_t>*>);
-    static_assert(std::is_same_v<decltype(std::declval<OrderBookSide&>().findLevel(100)), std::deque<uint64_t>*>);
-
-    static_assert(std::is_same_v<decltype(std::declval<OrderBookSide&>().removeLevelIfEmpty(100)), void>);
-    static_assert(std::is_same_v<decltype(std::declval<const OrderBookSide&>().orderCountAtPrice(100)), size_t>);
-
-    static_assert(std::is_same_v<
-        decltype(std::declval<const OrderBookSide&>().volumeAtPrice(100, std::declval<const std::unordered_map<uint64_t, Order>&>())),
-        uint64_t>
-    );
-
-    static_assert(std::is_same_v<
-        decltype(std::declval<const OrderBookSide&>().getDepth(5, std::declval<const std::unordered_map<uint64_t, Order>&>())),
-        std::vector<LevelSnapshot>>
-    );
-}
-
-TEST_F(OrderBookSideBuyTest, EmptySideHasNoBestPriceAndNoLevels) {
+TEST_F(OrderBookSideBuyTest, ConstructorSetsSideAndStartsEmpty) {
+    EXPECT_EQ(side.side(), Side::BUY);
     EXPECT_TRUE(side.empty());
     EXPECT_EQ(side.priceLevelCount(), 0U);
+    EXPECT_EQ(side.orderCount(), 0U);
     EXPECT_FALSE(side.bestPrice().has_value());
-    EXPECT_EQ(side.orderCountAtPrice(100), 0U);
+    EXPECT_EQ(side.getBestOrder(), nullptr);
 }
 
-TEST_F(OrderBookSideBuyTest, AddOrderCreatesLevelAndMaintainsFIFOWithinLevel) {
-    side.addOrder(100, 1);
-    side.addOrder(100, 2);
+TEST_F(OrderBookSideBuyTest, AddOrderCreatesPriceLevelAndIndexEntry) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 10);
 
-    const auto* queue = side.findLevel(100);
-    ASSERT_NE(queue, nullptr);
-    ASSERT_EQ(queue->size(), 2U);
-    EXPECT_EQ(queue->at(0), 1U);
-    EXPECT_EQ(queue->at(1), 2U);
-    EXPECT_EQ(side.orderCountAtPrice(100), 2U);
+    EXPECT_FALSE(side.empty());
+    EXPECT_EQ(side.priceLevelCount(), 1U);
+    EXPECT_EQ(side.orderCount(), 1U);
+    EXPECT_TRUE(side.doesOrderExist(1));
+    EXPECT_TRUE(side.doesLevelExist(100));
+
+    const Order* order = side.findOrder(1);
+    ASSERT_NE(order, nullptr);
+    EXPECT_EQ(order->price, 100);
+    EXPECT_EQ(order->quantity, 10);
+
+    expectLevelIntegrity(side, 100, {1}, 10U);
 }
 
-TEST_F(OrderBookSideBuyTest, BestPriceForBuySideIsHighestPrice) {
-    side.addOrder(100, 1);
-    side.addOrder(101, 3);
+TEST_F(OrderBookSideBuyTest, DuplicateIdAndMismatchedSideAreIgnored) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 10);
+    side.addOrder(1, Side::BUY, Type::LIMIT, 101, 20);
+    side.addOrder(2, Side::SELL, Type::LIMIT, 100, 5);
 
-    const auto best = side.bestPrice();
-    ASSERT_TRUE(best.has_value());
-    EXPECT_EQ(best.value(), 101);
+    EXPECT_EQ(side.orderCount(), 1U);
+    EXPECT_EQ(side.priceLevelCount(), 1U);
+    EXPECT_EQ(side.bestPrice(), std::optional<int>(100));
+    expectLevelIntegrity(side, 100, {1}, 10U);
 }
 
-TEST_F(OrderBookSideSellTest, BestPriceForSellSideIsLowestPrice) {
-    side.addOrder(104, 5);
-    side.addOrder(103, 4);
+TEST_F(OrderBookSideBuyTest, AddOrderOverloadUsesOrderFieldsAndMaintainsFifo) {
+    Order a{1, Side::BUY, Type::LIMIT, 100, 5};
+    Order b{2, Side::BUY, Type::LIMIT, 100, 7};
+    side.addOrder(a);
+    side.addOrder(b);
 
-    const auto best = side.bestPrice();
-    ASSERT_TRUE(best.has_value());
-    EXPECT_EQ(best.value(), 103);
+    expectLevelIntegrity(side, 100, {1, 2}, 12U);
+    EXPECT_EQ(side.getOrderIdsAtPrice(100), std::vector<uint64_t>({1, 2}));
 }
 
-TEST_F(OrderBookSideBuyTest, VolumeAtPriceSumsQuantitiesFromAuthoritativeOrderMap) {
-    const auto ordersById = makeOrders();
+TEST_F(OrderBookSideBuyTest, BestPriceAndBestOrderAreHighestPriceAndFrontOfQueue) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 101, 7);
+    side.addOrder(3, Side::BUY, Type::LIMIT, 101, 9);
 
-    side.addOrder(100, 1);
-    side.addOrder(100, 2);
+    EXPECT_EQ(side.bestPrice(), std::optional<int>(101));
 
-    EXPECT_EQ(side.volumeAtPrice(100, ordersById), 25U);
+    const Order* best = side.getBestOrder();
+    ASSERT_NE(best, nullptr);
+    EXPECT_EQ(best->id, 2U);
+    EXPECT_EQ(best->quantity, 7);
 }
 
-TEST_F(OrderBookSideBuyTest, VolumeAtPriceReturnsZeroForMissingLevelOrEmptyLevel) {
-    const auto ordersById = makeOrders();
+TEST_F(OrderBookSideSellTest, BestPriceForSellIsLowestPrice) {
+    side.addOrder(10, Side::SELL, Type::LIMIT, 103, 4);
+    side.addOrder(11, Side::SELL, Type::LIMIT, 102, 6);
 
-    EXPECT_EQ(side.volumeAtPrice(100, ordersById), 0U);
-
-    side.addOrder(100, 1);
-    auto* queue = side.findLevel(100);
-    ASSERT_NE(queue, nullptr);
-    queue->clear();
-    side.removeLevelIfEmpty(100);
-
-    EXPECT_EQ(side.volumeAtPrice(100, ordersById), 0U);
+    EXPECT_EQ(side.bestPrice(), std::optional<int>(102));
+    const Order* best = side.getBestOrder();
+    ASSERT_NE(best, nullptr);
+    EXPECT_EQ(best->id, 11U);
 }
 
-TEST_F(OrderBookSideBuyTest, GetDepthForBuyReturnsHighestToLowestPrices) {
-    const auto ordersById = makeOrders();
+TEST_F(OrderBookSideBuyTest, DeleteMissingOrderReturnsFalseWithoutMutation) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 10);
 
-    side.addOrder(100, 1);
-    side.addOrder(100, 2);
-    side.addOrder(101, 3);
-
-    const std::vector<LevelSnapshot> depth = side.getDepth(2, ordersById);
-    ASSERT_EQ(depth.size(), 2U);
-
-    EXPECT_EQ(depth.at(0).price, 101);
-    EXPECT_EQ(depth.at(0).totalQuantity, 5U);
-    EXPECT_EQ(depth.at(0).orderCount, 1U);
-
-    EXPECT_EQ(depth.at(1).price, 100);
-    EXPECT_EQ(depth.at(1).totalQuantity, 25U);
-    EXPECT_EQ(depth.at(1).orderCount, 2U);
+    EXPECT_FALSE(side.deleteOrderById(999));
+    expectLevelIntegrity(side, 100, {1}, 10U);
+    EXPECT_EQ(side.orderCount(), 1U);
 }
 
-TEST_F(OrderBookSideSellTest, GetDepthForSellReturnsLowestToHighestPrices) {
-    const auto ordersById = makeOrders();
+TEST_F(OrderBookSideBuyTest, DeleteHeadMiddleAndTailKeepLinksAndStatsConsistent) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 10);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 20);
+    side.addOrder(3, Side::BUY, Type::LIMIT, 100, 30);
 
-    side.addOrder(104, 5);
-    side.addOrder(104, 6);
-    side.addOrder(103, 4);
+    EXPECT_TRUE(side.deleteOrderById(1));
+    expectLevelIntegrity(side, 100, {2, 3}, 50U);
 
-    const std::vector<LevelSnapshot> depth = side.getDepth(2, ordersById);
-    ASSERT_EQ(depth.size(), 2U);
+    EXPECT_TRUE(side.deleteOrderById(2));
+    expectLevelIntegrity(side, 100, {3}, 30U);
 
-    EXPECT_EQ(depth.at(0).price, 103);
-    EXPECT_EQ(depth.at(0).totalQuantity, 7U);
-    EXPECT_EQ(depth.at(0).orderCount, 1U);
-
-    EXPECT_EQ(depth.at(1).price, 104);
-    EXPECT_EQ(depth.at(1).totalQuantity, 20U);
-    EXPECT_EQ(depth.at(1).orderCount, 2U);
-}
-
-TEST_F(OrderBookSideBuyTest, GetDepthRespectsRequestedLevelCount) {
-    const auto ordersById = makeOrders();
-
-    side.addOrder(99, 1);
-    side.addOrder(100, 2);
-    side.addOrder(101, 3);
-
-    const std::vector<LevelSnapshot> depth = side.getDepth(1, ordersById);
-    ASSERT_EQ(depth.size(), 1U);
-    EXPECT_EQ(depth.at(0).price, 101);
-}
-
-TEST_F(OrderBookSideBuyTest, FindLevelReturnsNullptrForMissingPrice) {
-    EXPECT_EQ(side.findLevel(12345), nullptr);
-}
-
-TEST_F(OrderBookSideBuyTest, RemoveEmptyLevelDeletesOnlyWhenQueueIsEmpty) {
-    side.addOrder(100, 1);
-
-    side.removeLevelIfEmpty(100);
-    EXPECT_NE(side.findLevel(100), nullptr);
-
-    auto* queue = side.findLevel(100);
-    ASSERT_NE(queue, nullptr);
-    queue->clear();
-
-    side.removeLevelIfEmpty(100);
+    EXPECT_TRUE(side.deleteOrderById(3));
     EXPECT_EQ(side.findLevel(100), nullptr);
+    EXPECT_TRUE(side.empty());
 }
 
-} // namespace
+TEST_F(OrderBookSideBuyTest, ReduceOrderQuantityHandlesPartialAndExactFill) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 10);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 6);
+
+    EXPECT_TRUE(side.reduceOrderQuantity(1, 4));
+    const Order* first = side.findOrder(1);
+    ASSERT_NE(first, nullptr);
+    EXPECT_EQ(first->quantity, 6);
+    expectLevelIntegrity(side, 100, {1, 2}, 12U);
+
+    EXPECT_TRUE(side.reduceOrderQuantity(1, 6));
+    EXPECT_FALSE(side.doesOrderExist(1));
+    expectLevelIntegrity(side, 100, {2}, 6U);
+}
+
+TEST_F(OrderBookSideBuyTest, ReduceOrderQuantityRejectsMissingOrTooLargeDelta) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
+
+    EXPECT_FALSE(side.reduceOrderQuantity(999, 1));
+    EXPECT_FALSE(side.reduceOrderQuantity(1, 6));
+
+    const Order* order = side.findOrder(1);
+    ASSERT_NE(order, nullptr);
+    EXPECT_EQ(order->quantity, 5);
+    expectLevelIntegrity(side, 100, {1}, 5U);
+}
+
+TEST_F(OrderBookSideBuyTest, ModifyOrderRejectsInvalidCases) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
+
+    EXPECT_FALSE(side.modifyOrder(Order{999, Side::BUY, Type::LIMIT, 100, 5}, true));
+    EXPECT_FALSE(side.modifyOrder(Order{1, Side::BUY, Type::LIMIT, 100, 0}, true));
+
+    expectLevelIntegrity(side, 100, {1}, 5U);
+}
+
+TEST_F(OrderBookSideBuyTest, ModifyReduceSamePriceKeepsQueuePosition) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 8);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 5);
+
+    EXPECT_TRUE(side.modifyOrder(Order{1, Side::BUY, Type::LIMIT, 100, 3}, false));
+
+    expectLevelIntegrity(side, 100, {1, 2}, 8U);
+    const Order* order = side.findOrder(1);
+    ASSERT_NE(order, nullptr);
+    EXPECT_EQ(order->quantity, 3);
+}
+
+TEST_F(OrderBookSideBuyTest, ModifyIncreaseSamePriceMovesOrderToBackWhenQueuePriorityLost) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 5);
+
+    EXPECT_TRUE(side.modifyOrder(Order{1, Side::BUY, Type::LIMIT, 100, 9}, true));
+
+    expectLevelIntegrity(side, 100, {2, 1}, 14U);
+}
+
+TEST_F(OrderBookSideBuyTest, ModifyPriceChangeMovesOrderToNewLevelAndBackOfExistingQueue) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 101, 4);
+    side.addOrder(3, Side::BUY, Type::LIMIT, 101, 3);
+
+    EXPECT_TRUE(side.modifyOrder(Order{1, Side::BUY, Type::LIMIT, 101, 7}, true));
+
+    EXPECT_EQ(side.findLevel(100), nullptr);
+    expectLevelIntegrity(side, 101, {2, 3, 1}, 14U);
+}
+
+TEST_F(OrderBookSideBuyTest, GetDepthReturnsDescendingForBuyAndRespectsLimit) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 99, 2);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 3);
+    side.addOrder(3, Side::BUY, Type::LIMIT, 101, 4);
+
+    const std::vector<LevelSnapshot> depth = side.getDepth(2);
+    ASSERT_EQ(depth.size(), 2U);
+
+    EXPECT_EQ(depth[0].price, 101);
+    EXPECT_EQ(depth[0].totalQuantity, 4U);
+    EXPECT_EQ(depth[0].orderCount, 1U);
+
+    EXPECT_EQ(depth[1].price, 100);
+    EXPECT_EQ(depth[1].totalQuantity, 3U);
+    EXPECT_EQ(depth[1].orderCount, 1U);
+}
+
+TEST_F(OrderBookSideSellTest, GetDepthReturnsAscendingForSellAndHandlesZeroLevels) {
+    side.addOrder(1, Side::SELL, Type::LIMIT, 104, 2);
+    side.addOrder(2, Side::SELL, Type::LIMIT, 103, 3);
+    side.addOrder(3, Side::SELL, Type::LIMIT, 103, 5);
+
+    const std::vector<LevelSnapshot> depth = side.getDepth(10);
+    ASSERT_EQ(depth.size(), 2U);
+    EXPECT_EQ(depth[0].price, 103);
+    EXPECT_EQ(depth[0].totalQuantity, 8U);
+    EXPECT_EQ(depth[0].orderCount, 2U);
+    EXPECT_EQ(depth[1].price, 104);
+
+    EXPECT_TRUE(side.getDepth(0).empty());
+}
+
+TEST_F(OrderBookSideBuyTest, OrderAndLevelStatsHelpersMatchStoredState) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 4);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 6);
+    side.addOrder(3, Side::BUY, Type::LIMIT, 101, 9);
+
+    EXPECT_EQ(side.orderCount(), 3U);
+    EXPECT_EQ(side.orderCountAtPrice(100), 2U);
+    EXPECT_EQ(side.orderCountAtPrice(999), 0U);
+    EXPECT_EQ(side.volumeAtPrice(100), 10U);
+    EXPECT_EQ(side.volumeAtPrice(999), 0U);
+}
+
+TEST_F(OrderBookSideBuyTest, GetAllOrderIdsContainsAllActiveIds) {
+    side.addOrder(10, Side::BUY, Type::LIMIT, 100, 1);
+    side.addOrder(7, Side::BUY, Type::LIMIT, 100, 1);
+    side.addOrder(21, Side::BUY, Type::LIMIT, 101, 1);
+
+    std::vector<uint64_t> ids = side.getAllOrderIds();
+    std::sort(ids.begin(), ids.end());
+
+    EXPECT_EQ(ids, std::vector<uint64_t>({7, 10, 21}));
+}
+
+TEST_F(OrderBookSideBuyTest, RemoveLevelIfEmptyIsSafeForMissingAndNonEmptyLevels) {
+    side.removeLevelIfEmpty(100);
+
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 3);
+    side.removeLevelIfEmpty(100);
+
+    expectLevelIntegrity(side, 100, {1}, 3U);
+}
+
+TEST_F(OrderBookSideBuyTest, GetOrderIdsAtPriceReturnsEmptyForMissingLevel) {
+    EXPECT_TRUE(side.getOrderIdsAtPrice(404).empty());
+}

@@ -20,8 +20,8 @@ public:
 private:
     uint64_t nextOrderId {1};
 
-    OrderBookSide buyBook;
-    OrderBookSide sellBook;
+    OrderBookSide buyBook{Side::BUY};
+    OrderBookSide sellBook{Side::SELL};
     std::vector<Trade> tradeHistory;
     
     std::unordered_map<uint64_t, Side> orderIdSide;

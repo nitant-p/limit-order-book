@@ -58,6 +58,7 @@ if(BUILD_TESTING)
         tests/CancelOrderTest.cpp
         tests/ModifyOrderTest.cpp
         tests/OrderIdBehaviorTest.cpp
+        tests/OrderBookSideTest.cpp
     )
 
     target_link_libraries(matching_engine_tests
@@ -67,20 +68,6 @@ if(BUILD_TESTING)
     )
 
     gtest_discover_tests(matching_engine_tests)
-
-    if(ENABLE_PHASE2_ORDER_BOOK_SIDE_TESTS)
-        add_executable(order_book_side_tests
-            tests/OrderBookSideTest.cpp
-        )
-
-        target_link_libraries(order_book_side_tests
-            PRIVATE
-                order_book_lib
-                GTest::gtest_main
-        )
-
-        gtest_discover_tests(order_book_side_tests)
-    endif()
 
     if(ENABLE_COVERAGE)
         add_custom_target(coverage

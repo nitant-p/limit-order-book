@@ -1,21 +1,17 @@
 #include "MatchingEngine.h"
+#include "TestHelpers.h"
 
 #include <gtest/gtest.h>
 
-#include <cstdint>
-#include <deque>
+#include <vector>
 
 namespace {
 
-const std::deque<uint64_t>& levelAt(const OrderBookSide& side, int price) {
-    const auto* queue = side.findLevel(price);
-    EXPECT_NE(queue, nullptr);
-    return *queue;
-}
+using test_helpers::levelIds;
 
 class CancelOrderTest : public ::testing::Test {
 protected:
-    MatchingEngine engine{OrderBookSide{Side::BUY}, OrderBookSide{Side::SELL}};
+    MatchingEngine engine;
 };
 
 } // namespace
@@ -24,18 +20,14 @@ TEST_F(CancelOrderTest, CancelMissingOrderReturnsFalseAndDoesNotMutateBook) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 4);  // id 1
     engine.processOrder(Side::SELL, Type::LIMIT, 103, 6); // id 2
 
-    const size_t beforeBuyLevels = engine.getBuyOrders().priceLevelCount();
-    const size_t beforeSellLevels = engine.getSellOrders().priceLevelCount();
-    const auto beforeBuy100 = levelAt(engine.getBuyOrders(), 100);
-    const auto beforeSell103 = levelAt(engine.getSellOrders(), 103);
+    const auto beforeBuy100 = levelIds(engine.getBuyBook(), 100);
+    const auto beforeSell103 = levelIds(engine.getSellOrders(), 103);
 
     const bool ok = engine.cancelOrder(999);
 
     EXPECT_FALSE(ok);
-    EXPECT_EQ(engine.getBuyOrders().priceLevelCount(), beforeBuyLevels);
-    EXPECT_EQ(engine.getSellOrders().priceLevelCount(), beforeSellLevels);
-    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100), beforeBuy100);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 103), beforeSell103);
+    EXPECT_EQ(levelIds(engine.getBuyBook(), 100), beforeBuy100);
+    EXPECT_EQ(levelIds(engine.getSellOrders(), 103), beforeSell103);
 }
 
 TEST_F(CancelOrderTest, CancelExistingBuyOrderRemovesLastOrderAtPriceLevel) {
@@ -44,22 +36,20 @@ TEST_F(CancelOrderTest, CancelExistingBuyOrderRemovesLastOrderAtPriceLevel) {
     const bool ok = engine.cancelOrder(1);
 
     EXPECT_TRUE(ok);
-    EXPECT_TRUE(engine.getBuyOrders().empty());
+    EXPECT_TRUE(engine.getBuyBook().empty());
 }
 
-TEST_F(CancelOrderTest, CancelExistingSellOrderRemovesOnlyTargetFromPriceQueue) {
+TEST_F(CancelOrderTest, CancelExistingSellOrderRemovesOnlyTargetFromPriceLevel) {
     engine.processOrder(Side::SELL, Type::LIMIT, 101, 5); // id 1
     engine.processOrder(Side::SELL, Type::LIMIT, 101, 7); // id 2
 
     const bool ok = engine.cancelOrder(1);
 
     EXPECT_TRUE(ok);
-    ASSERT_EQ(engine.getSellOrders().priceLevelCount(), 1U);
-    ASSERT_EQ(levelAt(engine.getSellOrders(), 101).size(), 1U);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 101).front(), 2U);
+    EXPECT_EQ(levelIds(engine.getSellOrders(), 101), std::vector<uint64_t>({2}));
 }
 
-TEST_F(CancelOrderTest, CancelMiddleOrderPreservesRemainingFIFOOrder) {
+TEST_F(CancelOrderTest, CancelMiddleOrderPreservesRemainingFifoOrder) {
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 2); // id 1
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 3); // id 2
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 4); // id 3
@@ -67,9 +57,7 @@ TEST_F(CancelOrderTest, CancelMiddleOrderPreservesRemainingFIFOOrder) {
     const bool ok = engine.cancelOrder(2);
 
     EXPECT_TRUE(ok);
-    ASSERT_EQ(levelAt(engine.getBuyOrders(), 100).size(), 2U);
-    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).at(0), 1U);
-    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100).at(1), 3U);
+    EXPECT_EQ(levelIds(engine.getBuyBook(), 100), std::vector<uint64_t>({1, 3}));
 }
 
 TEST_F(CancelOrderTest, CancelTwiceSecondCallReturnsFalseWithNoFurtherMutation) {
@@ -77,24 +65,20 @@ TEST_F(CancelOrderTest, CancelTwiceSecondCallReturnsFalseWithNoFurtherMutation) 
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 2); // id 2
 
     const bool first = engine.cancelOrder(1);
-    const auto afterFirstBuy100 = levelAt(engine.getBuyOrders(), 100);
-    const size_t afterFirstBuyLevels = engine.getBuyOrders().priceLevelCount();
+    const auto afterFirstBuy100 = levelIds(engine.getBuyBook(), 100);
 
     const bool second = engine.cancelOrder(1);
 
     EXPECT_TRUE(first);
     EXPECT_FALSE(second);
-    EXPECT_EQ(engine.getBuyOrders().priceLevelCount(), afterFirstBuyLevels);
-    EXPECT_EQ(levelAt(engine.getBuyOrders(), 100), afterFirstBuy100);
+    EXPECT_EQ(levelIds(engine.getBuyBook(), 100), afterFirstBuy100);
 }
 
 TEST_F(CancelOrderTest, CancelPartiallyFilledRestingOrderRemovesItsRemainder) {
     engine.processOrder(Side::SELL, Type::LIMIT, 100, 10); // id 1
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 4);   // id 2
 
-    ASSERT_EQ(engine.getSellOrders().priceLevelCount(), 1U);
-    ASSERT_EQ(levelAt(engine.getSellOrders(), 100).size(), 1U);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 100).front(), 1U);
+    ASSERT_EQ(levelIds(engine.getSellOrders(), 100), std::vector<uint64_t>({1}));
 
     const bool ok = engine.cancelOrder(1);
 
@@ -107,13 +91,13 @@ TEST_F(CancelOrderTest, CancelDoesNotAffectOppositeSideBook) {
     engine.processOrder(Side::SELL, Type::LIMIT, 105, 7); // id 2
     engine.processOrder(Side::SELL, Type::LIMIT, 106, 8); // id 3
 
-    const auto beforeSell105 = levelAt(engine.getSellOrders(), 105);
-    const auto beforeSell106 = levelAt(engine.getSellOrders(), 106);
+    const auto beforeSell105 = levelIds(engine.getSellOrders(), 105);
+    const auto beforeSell106 = levelIds(engine.getSellOrders(), 106);
 
     const bool ok = engine.cancelOrder(1);
 
     EXPECT_TRUE(ok);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 105), beforeSell105);
-    EXPECT_EQ(levelAt(engine.getSellOrders(), 106), beforeSell106);
-    EXPECT_TRUE(engine.getBuyOrders().empty());
+    EXPECT_EQ(levelIds(engine.getSellOrders(), 105), beforeSell105);
+    EXPECT_EQ(levelIds(engine.getSellOrders(), 106), beforeSell106);
+    EXPECT_TRUE(engine.getBuyBook().empty());
 }

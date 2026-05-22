@@ -63,13 +63,13 @@ Trade MatchingEngine::processMatchedOrders(
     OrderBookSide& book
     ) {
     const int minQuantity = min(incomingOrder.quantity, restingOrder.quantity);
+    const int priceTraded = restingOrder.price;
     cout << "Quantity traded: " << minQuantity << endl;
     incomingOrder.quantity -= minQuantity;
 
     auto result = book.reduceOrderQuantity(restingOrder.id, minQuantity);
     // TODO: add exception if result is false
 
-    const int priceTraded = restingOrder.price;
     cout << "Price traded at: " << priceTraded << endl;
 
     const Trade t(buyId, sellId, priceTraded,  minQuantity);
@@ -81,9 +81,13 @@ bool MatchingEngine::cancelOrder(uint64_t id) {
     const Order* order = getOrderById(id);
     if (order == nullptr) return false;
     
-    return order->side == Side::BUY
+    bool didCancel = order->side == Side::BUY
         ? buyBook.deleteOrderById(id)
         : sellBook.deleteOrderById(id);
+    if (didCancel) {
+        orderIdSide.erase(id);
+    }
+    return didCancel;
 
 }
 
@@ -122,10 +126,13 @@ vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
     vector<Trade> tradeList;
 
     auto best = this->sellBook.bestPrice();
-    if (!best) return tradeList;
+    if (!best) {
+        if (newOrder.type != Type::MARKET and newOrder.quantity > 0) {
+            this->addNewOrder(Side::BUY, newOrder);
+        }
+        return tradeList;
+    }
     int bestSellPrice = *best;
-
-    auto sellQueuePtr = this->sellBook.findLevel(bestSellPrice);
 
     while (newOrder.quantity > 0 and canContinueAgainstPrice(newOrder, bestSellPrice)) {
         const Order* currSellOrder = sellBook.getBestOrder();
@@ -140,6 +147,8 @@ vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
         bestSellPrice = *best;
     }
 
+    if (newOrder.type != Type::MARKET and newOrder.quantity > 0) this->addNewOrder(Side::BUY, newOrder);
+
     return tradeList;
 }
 
@@ -147,7 +156,12 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
     vector<Trade> tradeList;
 
     auto best = this->buyBook.bestPrice();
-    if (!best) return tradeList;
+    if (!best) {
+        if (newOrder.type != Type::MARKET and newOrder.quantity > 0) {
+            this->addNewOrder(Side::SELL, newOrder);
+        }
+        return tradeList;
+    }
     int bestBuyPrice = *best;
 
     while (newOrder.quantity > 0 and canContinueAgainstPrice(newOrder, bestBuyPrice)) {
@@ -155,7 +169,7 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
         if (currBuyOrder == nullptr) break;
         
         cout << "Matched with buy order: " << *currBuyOrder << endl;
-        Trade t = this->processMatchedOrders(newOrder, *currBuyOrder, currBuyOrder->id, newOrder.id, sellBook);
+        Trade t = this->processMatchedOrders(newOrder, *currBuyOrder, currBuyOrder->id, newOrder.id, buyBook);
         tradeList.push_back(t);
 
         best = this->buyBook.bestPrice();

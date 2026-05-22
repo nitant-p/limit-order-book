@@ -5,6 +5,7 @@
 #include "../include/OrderBookSide.h"
 #include <iostream>
 #include <ranges>
+#include <utility>
 
 using namespace std;
 
@@ -42,7 +43,7 @@ void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, 
     auto newNode = std::make_unique<OrderNode>(OrderNode{order, nullptr, nullptr});
     
     OrderNode* nodePtr = newNode.get();
-    orderNodesById_[orderId] = move(newNode);
+    orderNodesById_[orderId] = std::move(newNode);
 
     if (priceToLevelPtr == priceToLevels_.end()) {
         // make new level
@@ -92,7 +93,11 @@ bool OrderBookSide::deleteOrderById(uint64_t id) {
     // finally delete order
     orderNodesById_.erase(id);
 
-    return false;
+    return true;
+}
+
+bool OrderBookSide::doesLevelExist(int price) const {
+    return priceToLevels_.contains(price);
 }
 
 const PriceLevel* OrderBookSide::findLevel(int price) const {
@@ -129,6 +134,8 @@ uint64_t OrderBookSide::volumeAtPrice(int price) const {
 
 vector<LevelSnapshot> OrderBookSide::getDepth(size_t levels) const {
     vector<LevelSnapshot> levelSnapshots;
+    if (levels == 0) return levelSnapshots;
+
     if (side_ == Side::BUY) {
         for (const auto& l : this->priceToLevels_ | ranges::views::reverse) {
             levelSnapshots.push_back({l.first, l.second.totalQuantity, l.second.orderCount});
@@ -150,6 +157,18 @@ vector<uint64_t> OrderBookSide::getAllOrderIds() const {
         orderIds.push_back(orderId);
     }
     return orderIds;
+}
+
+vector<uint64_t> OrderBookSide::getOrderIdsAtPrice(int price) const {
+    vector<uint64_t> ids;
+    const PriceLevel* level = findLevel(price);
+    if (level == nullptr) return ids;
+
+    for (OrderNode* curr = level->head; curr != nullptr; curr = curr->next) {
+        ids.push_back(curr->order.id);
+    }
+
+    return ids;
 }
 
 size_t OrderBookSide::orderCount() const {
