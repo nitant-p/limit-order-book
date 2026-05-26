@@ -15,6 +15,8 @@ struct LevelSnapshot {
     size_t orderCount;
 };
 
+struct PriceLevel;
+
 struct OrderNode {
     Order order;
     OrderNode* prev = nullptr;
@@ -77,7 +79,7 @@ public:
 
     void printBook();
 private:
-    Order* findOrderMutable(uint64_t orderId);
+    OrderNode* findOrderNodeMutable(uint64_t orderId);
 
     Side side_;
 

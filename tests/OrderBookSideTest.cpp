@@ -11,6 +11,7 @@
 namespace {
 
 using test_helpers::expectLevelIntegrity;
+using test_helpers::expectActiveOrdersReferenceTheirLevels;
 using test_helpers::levelIds;
 
 class OrderBookSideBuyTest : public ::testing::Test {
@@ -185,6 +186,35 @@ TEST_F(OrderBookSideBuyTest, ModifyPriceChangeMovesOrderToNewLevelAndBackOfExist
 
     EXPECT_EQ(side.findLevel(100), nullptr);
     expectLevelIntegrity(side, 101, {2, 3, 1}, 14U);
+}
+
+TEST_F(OrderBookSideBuyTest, OrderNodesKeepPriceLevelPointersThroughSideLifecycle) {
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 10);
+    side.addOrder(2, Side::BUY, Type::LIMIT, 100, 20);
+    side.addOrder(3, Side::BUY, Type::LIMIT, 101, 30);
+    expectActiveOrdersReferenceTheirLevels(side);
+
+    EXPECT_TRUE(side.reduceOrderQuantity(1, 4));
+    expectLevelIntegrity(side, 100, {1, 2}, 26U);
+    expectActiveOrdersReferenceTheirLevels(side);
+
+    EXPECT_TRUE(side.modifyOrder(Order{1, Side::BUY, Type::LIMIT, 100, 3}, false));
+    expectLevelIntegrity(side, 100, {1, 2}, 23U);
+    expectActiveOrdersReferenceTheirLevels(side);
+
+    EXPECT_TRUE(side.modifyOrder(Order{2, Side::BUY, Type::LIMIT, 101, 7}, true));
+    expectLevelIntegrity(side, 100, {1}, 3U);
+    expectLevelIntegrity(side, 101, {3, 2}, 37U);
+    expectActiveOrdersReferenceTheirLevels(side);
+
+    EXPECT_TRUE(side.deleteOrderById(3));
+    expectLevelIntegrity(side, 101, {2}, 7U);
+    expectActiveOrdersReferenceTheirLevels(side);
+
+    EXPECT_TRUE(side.modifyOrder(Order{2, Side::BUY, Type::LIMIT, 102, 5}, true));
+    EXPECT_EQ(side.findLevel(101), nullptr);
+    expectLevelIntegrity(side, 102, {2}, 5U);
+    expectActiveOrdersReferenceTheirLevels(side);
 }
 
 TEST_F(OrderBookSideBuyTest, GetDepthReturnsDescendingForBuyAndRespectsLimit) {

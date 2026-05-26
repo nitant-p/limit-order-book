@@ -47,6 +47,8 @@ inline void expectLevelIntegrity(
 
     for (OrderNode* curr = level->head; curr != nullptr; curr = curr->next) {
         EXPECT_EQ(curr->prev, prev);
+        EXPECT_EQ(curr->priceLevel, level);
+        EXPECT_EQ(curr->order.price, price);
         if (prev != nullptr) {
             EXPECT_EQ(prev->next, curr);
         }
@@ -62,6 +64,8 @@ inline void expectLevelIntegrity(
     OrderNode* next = nullptr;
     for (OrderNode* curr = level->end; curr != nullptr; curr = curr->prev) {
         EXPECT_EQ(curr->next, next);
+        EXPECT_EQ(curr->priceLevel, level);
+        EXPECT_EQ(curr->order.price, price);
         reverseIds.push_back(curr->order.id);
         next = curr;
     }
@@ -72,6 +76,33 @@ inline void expectLevelIntegrity(
     EXPECT_EQ(reverseIds, expectedReverse);
     EXPECT_EQ(level->orderCount, expectedIds.size());
     EXPECT_EQ(level->totalQuantity, expectedTotalQty);
+}
+
+inline void expectActiveOrdersReferenceTheirLevels(const OrderBookSide& side) {
+    for (const LevelSnapshot& snapshot : side.getDepth(side.priceLevelCount())) {
+        const PriceLevel* level = side.findLevel(snapshot.price);
+        ASSERT_NE(level, nullptr);
+
+        size_t observedCount = 0;
+        uint64_t observedQty = 0;
+
+        for (OrderNode* curr = level->head; curr != nullptr; curr = curr->next) {
+            EXPECT_EQ(curr->priceLevel, level);
+            EXPECT_EQ(curr->order.price, snapshot.price);
+
+            const Order* indexedOrder = side.findOrder(curr->order.id);
+            ASSERT_NE(indexedOrder, nullptr);
+            EXPECT_EQ(indexedOrder, &curr->order);
+
+            ++observedCount;
+            observedQty += static_cast<uint64_t>(curr->order.quantity);
+        }
+
+        EXPECT_EQ(observedCount, level->orderCount);
+        EXPECT_EQ(observedCount, snapshot.orderCount);
+        EXPECT_EQ(observedQty, level->totalQuantity);
+        EXPECT_EQ(observedQty, snapshot.totalQuantity);
+    }
 }
 
 } // namespace test_helpers

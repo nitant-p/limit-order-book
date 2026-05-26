@@ -7,6 +7,7 @@
 
 namespace {
 
+using test_helpers::expectActiveOrdersReferenceTheirLevels;
 using test_helpers::levelIds;
 
 class ModifyOrderTest : public ::testing::Test {
@@ -127,4 +128,22 @@ TEST_F(ModifyOrderTest, ModifyOneSideDoesNotMutateOppositeSideBook) {
 
     EXPECT_TRUE(ok);
     EXPECT_EQ(levelIds(engine.getSellOrders(), 110), beforeSell110);
+}
+
+TEST_F(ModifyOrderTest, PriceLevelPointersSurviveEngineModifyAndMatchingFlows) {
+    engine.processOrder(Side::SELL, Type::LIMIT, 100, 3); // id 1
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 5); // id 2
+    engine.processOrder(Side::SELL, Type::LIMIT, 101, 2); // id 3
+
+    EXPECT_TRUE(engine.modifyOrder(3, 102, 4));
+    expectActiveOrdersReferenceTheirLevels(engine.getSellOrders());
+
+    const std::vector<Trade> trades = engine.processOrder(Side::BUY, Type::LIMIT, 101, 6); // id 4
+
+    ASSERT_EQ(trades.size(), 2U);
+    EXPECT_EQ(trades[0].sellOrderId, 1U);
+    EXPECT_EQ(trades[1].sellOrderId, 2U);
+    EXPECT_EQ(levelIds(engine.getSellOrders(), 101), std::vector<uint64_t>({2}));
+    EXPECT_EQ(levelIds(engine.getSellOrders(), 102), std::vector<uint64_t>({3}));
+    expectActiveOrdersReferenceTheirLevels(engine.getSellOrders());
 }

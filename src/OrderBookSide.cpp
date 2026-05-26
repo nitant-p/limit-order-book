@@ -48,9 +48,11 @@ void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, 
 
     if (priceToLevelPtr == priceToLevels_.end()) {
         // make new level
-        PriceLevel priceLevel = PriceLevel{nodePtr, nodePtr, 1, static_cast<uint64_t>(nodePtr->order.quantity)};
-        priceToLevels_[price] = priceLevel;
-        nodePtr->priceLevel = &priceLevel;
+        auto result = priceToLevels_.emplace(
+            price,
+            PriceLevel{nodePtr, nodePtr, 1, static_cast<uint64_t>(nodePtr->order.quantity)}
+        );
+        nodePtr->priceLevel = &result.first->second;
     } else {
         // join at end, update end
         auto end = priceToLevelPtr->second.end;
@@ -84,7 +86,7 @@ bool OrderBookSide::deleteOrderById(uint64_t id) {
     if (prev != nullptr) prev->next = next;
     if (next != nullptr) next->prev = prev;
 
-    PriceLevel& priceLevel = priceToLevels_[nodePtr->order.price];
+    PriceLevel& priceLevel = *nodePtr->priceLevel;
     if (priceLevel.head == nodePtr) priceLevel.head = nodePtr->next;
     if (priceLevel.end == nodePtr) priceLevel.end = nodePtr->prev;
 
@@ -221,10 +223,10 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
     return true;
 }
 
-Order* OrderBookSide::findOrderMutable(uint64_t orderId) {
+OrderNode* OrderBookSide::findOrderNodeMutable(uint64_t orderId) {
     auto it = orderNodesById_.find(orderId);
     if (it == orderNodesById_.end()) return nullptr;
-    return &it->second.get()->order;
+    return it->second.get();
 }
 
 
@@ -238,10 +240,12 @@ const Order* OrderBookSide::findOrder(uint64_t orderId) const {
 bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
     if (updatedOrder.quantity <= 0) return false;
 
-    Order* orderPtr = findOrderMutable(updatedOrder.id);
-    if (orderPtr == nullptr) return false;
+    OrderNode* orderNodePtr = findOrderNodeMutable(updatedOrder.id);
+    if (orderNodePtr == nullptr) return false;
 
-    PriceLevel* originalLevel = findLevel(orderPtr->price);
+    Order* orderPtr = &orderNodePtr->order;
+
+    PriceLevel* originalLevel = orderNodePtr->priceLevel;
     if (originalLevel == nullptr) return false;
 
     int originalQuantity = orderPtr->quantity;
@@ -255,10 +259,7 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
         return true;
     }    
 
-    auto ptr = orderNodesById_.find(orderPtr->id);
-    if (ptr == orderNodesById_.end()) return false;
-
-    OrderNode* node = ptr->second.get();
+    OrderNode* node = orderNodePtr;
     OrderNode* prev = node->prev;
     OrderNode* next = node->next;
 
@@ -303,10 +304,16 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
 
     if (newLevel == nullptr) {
         // create if missing
-        PriceLevel p{node, node, 1, static_cast<uint64_t>(orderPtr->quantity)};
-        priceToLevels_[orderPtr->price] = p;
+        auto result = priceToLevels_.emplace(
+            orderPtr->price,
+            PriceLevel{node, node, 1, static_cast<uint64_t>(orderPtr->quantity)}
+        );
+        orderNodePtr->priceLevel = &result.first->second;
         return true;
     }
+
+    // set new level
+    node->priceLevel = newLevel;
 
     if (newLevel->orderCount == 0) {
         node->prev = nullptr;
