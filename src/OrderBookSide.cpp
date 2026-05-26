@@ -4,6 +4,7 @@
 
 #include "../include/OrderBookSide.h"
 #include <iostream>
+
 #include <ranges>
 #include <utility>
 
@@ -40,19 +41,22 @@ void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, 
 
     Order order(orderId, side, type, price, quantity);
     auto priceToLevelPtr = priceToLevels_.find(price);
-    auto newNode = std::make_unique<OrderNode>(OrderNode{order, nullptr, nullptr});
+    auto newNode = std::make_unique<OrderNode>(OrderNode{order, nullptr, nullptr, nullptr});
     
     OrderNode* nodePtr = newNode.get();
     orderNodesById_[orderId] = std::move(newNode);
 
     if (priceToLevelPtr == priceToLevels_.end()) {
         // make new level
-        priceToLevels_[price] = PriceLevel{nodePtr, nodePtr, 1, static_cast<uint64_t>(nodePtr->order.quantity)};
+        PriceLevel priceLevel = PriceLevel{nodePtr, nodePtr, 1, static_cast<uint64_t>(nodePtr->order.quantity)};
+        priceToLevels_[price] = priceLevel;
+        nodePtr->priceLevel = &priceLevel;
     } else {
         // join at end, update end
         auto end = priceToLevelPtr->second.end;
         end->next = nodePtr;
         nodePtr->prev = end;
+        nodePtr->priceLevel = &priceToLevelPtr->second;
         priceToLevelPtr->second.end = nodePtr;
         ++priceToLevelPtr->second.orderCount;
         priceToLevelPtr->second.totalQuantity += nodePtr->order.quantity;
@@ -205,7 +209,7 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
     if (delta > order.quantity) return false;
 
     // reduce price level data
-    PriceLevel& level = *findLevel(order.price);
+    PriceLevel& level = *it->second.get()->priceLevel;
     level.totalQuantity -= delta;
 
     order.quantity -= delta;

@@ -19,6 +19,7 @@ struct OrderNode {
     Order order;
     OrderNode* prev = nullptr;
     OrderNode* next = nullptr;
+    PriceLevel* priceLevel = nullptr;
 };
 
 struct PriceLevel {
