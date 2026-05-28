@@ -147,6 +147,24 @@ TEST_F(OrderBookSideBuyTest, ReduceOrderQuantityRejectsMissingOrTooLargeDelta) {
     expectLevelIntegrity(side, 100, {1}, 5U);
 }
 
+TEST_F(OrderBookSideBuyTest, RemoveOrderIfFilledHandlesMissingOpenAndFilledOrders) {
+    side.removeOrderIfFilled(999);
+    EXPECT_TRUE(side.empty());
+
+    side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
+    side.removeOrderIfFilled(1);
+
+    EXPECT_TRUE(side.doesOrderExist(1));
+    expectLevelIntegrity(side, 100, {1}, 5U);
+
+    side.addOrder(2, Side::BUY, Type::LIMIT, 101, 0);
+    side.removeOrderIfFilled(2);
+
+    EXPECT_FALSE(side.doesOrderExist(2));
+    EXPECT_FALSE(side.doesLevelExist(101));
+    expectLevelIntegrity(side, 100, {1}, 5U);
+}
+
 TEST_F(OrderBookSideBuyTest, ModifyOrderRejectsInvalidCases) {
     side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
 

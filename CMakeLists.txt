@@ -92,6 +92,7 @@ if(BUILD_TESTING)
         tests/CancelOrderTest.cpp
         tests/ModifyOrderTest.cpp
         tests/OrderIdBehaviorTest.cpp
+        tests/FormattingAndPrintTest.cpp
         tests/OrderBookSideTest.cpp
     )
 
