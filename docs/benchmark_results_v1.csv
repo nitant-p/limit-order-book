@@ -1,0 +1,34 @@
+layer,api,case,scale,ns_per_op,ops_per_sec,finding
+MatchingEngine,processOrder,Add-only limit orders,1000,142.6,7020000,Resting-only inserts slow down as the book grows because each order allocates a node and updates ordered maps.
+MatchingEngine,processOrder,Add-only limit orders,10000,252.1,3970000,Resting-only inserts slow down as the book grows because each order allocates a node and updates ordered maps.
+MatchingEngine,processOrder,Match-heavy market buys,1000,173.8,5750000,Matching stays competitive because each incoming market order removes one resting order so the measured book does not grow.
+MatchingEngine,processOrder,Match-heavy market buys,10000,236.1,4240000,Matching stays competitive because each incoming market order removes one resting order so the measured book does not grow.
+MatchingEngine,processOrder,Mixed limits and markets,1000,154.4,6470000,Mixed flow combines resting adds with liquidity removal.
+MatchingEngine,processOrder,Mixed limits and markets,10000,181.4,5510000,Mixed flow combines resting adds with liquidity removal.
+MatchingEngine,cancelOrder,Existing resting orders,1000,102.2,9790000,Engine cancel does an ID-side lookup then delegates node unlinking to OrderBookSide.
+MatchingEngine,cancelOrder,Existing resting orders,10000,130.7,7650000,Engine cancel does an ID-side lookup then delegates node unlinking to OrderBookSide.
+MatchingEngine,modifyOrder,Same-price quantity reduction,1000,88.1,11440000,Fast engine-level mutation because the order keeps queue position.
+MatchingEngine,modifyOrder,Same-price quantity reduction,10000,100.0,10000000,Fast engine-level mutation because the order keeps queue position.
+MatchingEngine,modifyOrder,Price change,1000,98.1,10200000,Slower than same-price reduction because the order moves between price levels.
+MatchingEngine,modifyOrder,Price change,10000,116.7,8570000,Slower than same-price reduction because the order moves between price levels.
+OrderBookSide,addOrder,Direct side insert,1000,100.4,9960000,Direct insertion skips engine orchestration but still pays for node allocation and map updates.
+OrderBookSide,addOrder,Direct side insert,10000,131.6,7600000,Direct insertion skips engine orchestration but still pays for node allocation and map updates.
+OrderBookSide,bestPrice,Best price read,1000,67.6,14800000,Cheap read path using the current best-price lookup.
+OrderBookSide,bestPrice,Best price read,10000,9.7,102840000,Cheap read path using the current best-price lookup.
+OrderBookSide,getBestOrder,Best order pointer read,1000,68.6,14570000,Cheap read path that returns the head order at the best level.
+OrderBookSide,getBestOrder,Best order pointer read,10000,13.3,75400000,Cheap read path that returns the head order at the best level.
+OrderBookSide,findOrder,Existing ID lookup,1000,50.5,19810000,Steady lookup cost across current sizes.
+OrderBookSide,findOrder,Existing ID lookup,10000,55.0,18180000,Steady lookup cost across current sizes.
+OrderBookSide,deleteOrderById,Existing ID delete,1000,71.5,14030000,Fast unlink with level total and count updates.
+OrderBookSide,deleteOrderById,Existing ID delete,10000,81.5,12290000,Fast unlink with level total and count updates.
+OrderBookSide,reduceOrderQuantity,Partial reduction,1000,50.6,19750000,Fast path because the order remains resting.
+OrderBookSide,reduceOrderQuantity,Partial reduction,10000,55.0,18170000,Fast path because the order remains resting.
+OrderBookSide,reduceOrderQuantity,Exact fill,1000,87.2,11470000,Slower because exact fill also deletes the order node.
+OrderBookSide,reduceOrderQuantity,Exact fill,10000,103.3,9680000,Slower because exact fill also deletes the order node.
+OrderBookSide,modifyOrder,Same-price quantity reduction,1000,51.0,19600000,Close to partial quantity reduction because queue position is preserved.
+OrderBookSide,modifyOrder,Same-price quantity reduction,10000,57.4,17410000,Close to partial quantity reduction because queue position is preserved.
+OrderBookSide,modifyOrder,Price change,1000,67.2,14890000,More expensive because the node is relinked into another price level.
+OrderBookSide,modifyOrder,Price change,10000,69.7,14350000,More expensive because the node is relinked into another price level.
+OrderBookSide,getDepth,Depth 10,1000,250.2,4000000,Shallow depth reads are reasonable but still build a snapshot vector.
+OrderBookSide,getDepth,Depth 100,1000,535.3,1870000,Cost grows with requested levels.
+OrderBookSide,getDepth,Depth 1000,1000,4742.2,210880,Deep snapshots walk many levels and materialize many LevelSnapshot entries.

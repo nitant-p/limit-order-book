@@ -63,6 +63,59 @@ Run a single category:
 ctest --test-dir build -R ModifyOrderTest --output-on-failure
 ```
 
+## V1 Benchmark Results
+This section is the V1 benchmark baseline. Charts are generated from [`docs/benchmark_results_v1.csv`](./docs/benchmark_results_v1.csv) using a dependency-free Python SVG generator:
+
+```bash
+python3 scripts/generate_benchmark_graphs.py
+```
+
+Build and run the Google Benchmark executable:
+
+```bash
+cmake -S . -B build -DBUILD_TESTING=ON -DBUILD_GOOGLE_BENCHMARKS=ON -DCMAKE_BUILD_TYPE=Release
+cmake --build build --target order_book_google_benchmark --parallel
+./build/order_book_google_benchmark --benchmark_repetitions=3 --benchmark_report_aggregates_only=true
+```
+
+The benchmark build disables hot-path console logging with `ORDER_BOOK_DISABLE_LOGGING`, so `processOrder` and related timed paths are not dominated by `std::cout`.
+
+### MatchingEngine APIs
+![MatchingEngine API latency](./docs/benchmark_graphs/engine_latency.svg)
+
+![MatchingEngine API throughput](./docs/benchmark_graphs/engine_throughput.svg)
+
+Findings:
+- `processOrder` add-only slows as the book grows because every resting order allocates a node and updates ordered maps.
+- Match-heavy `processOrder` remains competitive because market orders remove resting liquidity instead of growing the book.
+- Mixed flow performs best among the engine order-processing cases because it combines passive adds with liquidity removal.
+- `cancelOrder` is relatively cheap, but still includes engine-level ID-side lookup before side-level unlinking.
+- Same-price `modifyOrder` is faster than price-change modify because it preserves queue position and avoids relinking across price levels.
+
+### OrderBookSide APIs
+![OrderBookSide API latency](./docs/benchmark_graphs/side_latency_10k.svg)
+
+![OrderBookSide API throughput](./docs/benchmark_graphs/side_throughput_10k.svg)
+
+Findings:
+- Direct `OrderBookSide` calls are faster than equivalent `MatchingEngine` paths because they skip engine orchestration, trade handling, and side routing.
+- `bestPrice` and `getBestOrder` are the cheapest read paths.
+- `findOrder` is steady at this scale, but it is backed by an ordered map, so larger-scale runs are useful before changing containers.
+- Partial `reduceOrderQuantity` and same-price `modifyOrder` are the fastest write-style operations because the order stays in place.
+- Exact-fill reduction is slower than partial reduction because it also removes the order node and may clean up the price level.
+- Price-change modify is slower than same-price modify because it relinks the order into another level.
+
+### Depth Snapshots
+![OrderBookSide getDepth latency](./docs/benchmark_graphs/depth_latency.svg)
+
+![OrderBookSide getDepth throughput](./docs/benchmark_graphs/depth_throughput.svg)
+
+Findings:
+- `getDepth(10)` is reasonable for shallow display-style snapshots.
+- `getDepth(100)` scales up visibly because it walks more levels and writes more `LevelSnapshot` entries.
+- `getDepth(1000)` is the slowest measured side API because it materializes a large snapshot vector.
+- Depth benchmarks should be compared separately from order mutation benchmarks because they are read-heavy and allocation-sensitive.
+
 ## CI/CD
 - CI workflow: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)
 - Coverage workflow: [`.github/workflows/coverage.yml`](./.github/workflows/coverage.yml)

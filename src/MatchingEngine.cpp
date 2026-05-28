@@ -9,9 +9,15 @@
 
 using namespace std;
 
+#ifndef ORDER_BOOK_DISABLE_LOGGING
+#define ORDER_BOOK_LOG(message) do { cout << message << endl; } while (false)
+#else
+#define ORDER_BOOK_LOG(message) do { } while (false)
+#endif
+
 vector<Trade> MatchingEngine::processOrder(Side side, Type type, int price, int quantity) {
     Order newOrder {this->getAndIncrementNextOrderId(), side, type, price, quantity};
-    cout << "Processing order:" << newOrder << endl;
+    ORDER_BOOK_LOG("Processing order:" << newOrder);
 
     if (newOrder.side == Side::BUY) return this->processBuyOrder(newOrder);
     return this->processSellOrder(newOrder);
@@ -64,13 +70,13 @@ Trade MatchingEngine::processMatchedOrders(
     ) {
     const int minQuantity = min(incomingOrder.quantity, restingOrder.quantity);
     const int priceTraded = restingOrder.price;
-    cout << "Quantity traded: " << minQuantity << endl;
+    ORDER_BOOK_LOG("Quantity traded: " << minQuantity);
     incomingOrder.quantity -= minQuantity;
 
     auto result = book.reduceOrderQuantity(restingOrder.id, minQuantity);
     // TODO: add exception if result is false
 
-    cout << "Price traded at: " << priceTraded << endl;
+    ORDER_BOOK_LOG("Price traded at: " << priceTraded);
 
     const Trade t(buyId, sellId, priceTraded,  minQuantity);
     tradeHistory.push_back(t);
@@ -138,7 +144,7 @@ vector<Trade> MatchingEngine::processBuyOrder(Order &newOrder) {
         const Order* currSellOrder = sellBook.getBestOrder();
         if (currSellOrder == nullptr) break;
         
-        cout << "Matched with sell order: " << *currSellOrder << endl;
+        ORDER_BOOK_LOG("Matched with sell order: " << *currSellOrder);
         Trade t = this->processMatchedOrders(newOrder, *currSellOrder, newOrder.id, currSellOrder->id, sellBook);
         tradeList.push_back(t);
 
@@ -168,7 +174,7 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
         const Order* currBuyOrder = buyBook.getBestOrder();
         if (currBuyOrder == nullptr) break;
         
-        cout << "Matched with buy order: " << *currBuyOrder << endl;
+        ORDER_BOOK_LOG("Matched with buy order: " << *currBuyOrder);
         Trade t = this->processMatchedOrders(newOrder, *currBuyOrder, currBuyOrder->id, newOrder.id, buyBook);
         tradeList.push_back(t);
 
@@ -185,23 +191,25 @@ vector<Trade> MatchingEngine::processSellOrder(Order &newOrder) {
 bool MatchingEngine::modifyOrder(uint64_t orderId, int newPrice, int newQuantity) {
     const Order* orderPtr = this->getOrderById(orderId);
     if (orderPtr == nullptr) {
-        cout << "Order ID does not exist" << endl;
+        ORDER_BOOK_LOG("Order ID does not exist");
         return false;
     }
 
     bool loseQueuePos = true;
 
     if (newQuantity <= 0 or newPrice <= 0) {
-        cout << "Quantity and price must be positive." << endl;
+        ORDER_BOOK_LOG("Quantity and price must be positive.");
         return false;
     } else if (newQuantity == orderPtr->quantity and newPrice == orderPtr->price) {
-        cout << "Order has not changed. Ignore request." << endl;
+        ORDER_BOOK_LOG("Order has not changed. Ignore request.");
         return false;
     } else if (newQuantity < orderPtr->quantity and newPrice == orderPtr->price) {
         // can keep queue position
-        cout << "Only quantity has reduced. Order can keep its queue position." << endl;
+        ORDER_BOOK_LOG("Only quantity has reduced. Order can keep its queue position.");
         loseQueuePos = false;
-    } else cout << "Order must be reinserted into queue." << endl;
+    } else {
+        ORDER_BOOK_LOG("Order must be reinserted into queue.");
+    }
 
     
     // construct dummy updated order

@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="426" viewBox="0 0 1180 426">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="28.0" y="34.0" font-family="Inter, Arial, sans-serif" font-size="22" fill="#111827" text-anchor="start">MatchingEngine API latency</text>
+<text x="28.0" y="58.0" font-family="Inter, Arial, sans-serif" font-size="13" fill="#6b7280" text-anchor="start">Lower is better. Values are mean CPU ns/op.</text>
+<line x1="300.0" y1="74" x2="300.0" y2="388" stroke="#e5e7eb" stroke-width="1"/>
+<text x="300.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">0.00 ns</text>
+<line x1="487.5" y1="74" x2="487.5" y2="388" stroke="#e5e7eb" stroke-width="1"/>
+<text x="487.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">63.0 ns</text>
+<line x1="675.0" y1="74" x2="675.0" y2="388" stroke="#e5e7eb" stroke-width="1"/>
+<text x="675.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">126 ns</text>
+<line x1="862.5" y1="74" x2="862.5" y2="388" stroke="#e5e7eb" stroke-width="1"/>
+<text x="862.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">189 ns</text>
+<line x1="1050.0" y1="74" x2="1050.0" y2="388" stroke="#e5e7eb" stroke-width="1"/>
+<text x="1050.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">252 ns</text>
+<rect x="300" y="60" width="12" height="12" fill="#2563eb" rx="2"/>
+<text x="318.0" y="71.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#6b7280" text-anchor="start">1k</text>
+<rect x="412" y="60" width="12" height="12" fill="#f97316" rx="2"/>
+<text x="430.0" y="71.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#6b7280" text-anchor="start">10k</text>
+<text x="282.0" y="113.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">processOrder: Add-only limit orders</text>
+<rect x="300" y="92" width="424.2" height="14" fill="#2563eb" rx="3"/>
+<text x="732.2" y="103.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">143 ns</text>
+<rect x="300" y="111" width="750.0" height="14" fill="#f97316" rx="3"/>
+<text x="1058.0" y="122.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">252 ns</text>
+<text x="282.0" y="161.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">processOrder: Match-heavy market buys</text>
+<rect x="300" y="140" width="517.1" height="14" fill="#2563eb" rx="3"/>
+<text x="825.1" y="151.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">174 ns</text>
+<rect x="300" y="159" width="702.4" height="14" fill="#f97316" rx="3"/>
+<text x="1010.4" y="170.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">236 ns</text>
+<text x="282.0" y="209.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">processOrder: Mixed limits and markets</text>
+<rect x="300" y="188" width="459.3" height="14" fill="#2563eb" rx="3"/>
+<text x="767.3" y="199.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">154 ns</text>
+<rect x="300" y="207" width="539.7" height="14" fill="#f97316" rx="3"/>
+<text x="847.7" y="218.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">181 ns</text>
+<text x="282.0" y="257.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">cancelOrder: Existing resting orders</text>
+<rect x="300" y="236" width="304.0" height="14" fill="#2563eb" rx="3"/>
+<text x="612.0" y="247.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">102 ns</text>
+<rect x="300" y="255" width="388.8" height="14" fill="#f97316" rx="3"/>
+<text x="696.8" y="266.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">131 ns</text>
+<text x="282.0" y="305.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">modifyOrder: Same-price quantity reduction</text>
+<rect x="300" y="284" width="262.1" height="14" fill="#2563eb" rx="3"/>
+<text x="570.1" y="295.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">88.1 ns</text>
+<rect x="300" y="303" width="297.5" height="14" fill="#f97316" rx="3"/>
+<text x="605.5" y="314.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">100 ns</text>
+<text x="282.0" y="353.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">modifyOrder: Price change</text>
+<rect x="300" y="332" width="291.8" height="14" fill="#2563eb" rx="3"/>
+<text x="599.8" y="343.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">98.1 ns</text>
+<rect x="300" y="351" width="347.2" height="14" fill="#f97316" rx="3"/>
+<text x="655.2" y="362.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">117 ns</text>
+</svg>

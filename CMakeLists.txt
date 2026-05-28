@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 option(ENABLE_COVERAGE "Enable gcov coverage instrumentation" OFF)
 option(ENABLE_PHASE2_ORDER_BOOK_SIDE_TESTS "Enable Phase 2 OrderBookSide API contract tests" OFF)
+option(BUILD_GOOGLE_BENCHMARKS "Build Google Benchmark executable" OFF)
 
 if(ENABLE_COVERAGE)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
@@ -28,6 +29,13 @@ target_include_directories(order_book_lib
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+if(BUILD_GOOGLE_BENCHMARKS)
+    target_compile_definitions(order_book_lib
+        PRIVATE
+            ORDER_BOOK_DISABLE_LOGGING
+    )
+endif()
+
 add_executable(order_book
     src/main.cpp
 )
@@ -36,6 +44,32 @@ target_link_libraries(order_book
     PRIVATE
         order_book_lib
 )
+
+if(BUILD_GOOGLE_BENCHMARKS)
+    include(FetchContent)
+
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        googlebenchmark
+        URL https://github.com/google/benchmark/archive/refs/tags/v1.9.5.zip
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+
+    FetchContent_MakeAvailable(googlebenchmark)
+
+    add_executable(order_book_google_benchmark
+        benchmarks/OrderBookGoogleBenchmark.cpp
+    )
+
+    target_link_libraries(order_book_google_benchmark
+        PRIVATE
+            order_book_lib
+            benchmark::benchmark
+    )
+endif()
 
 include(CTest)
 
