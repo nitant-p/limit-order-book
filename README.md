@@ -23,15 +23,23 @@ This project implements a central limit order book (CLOB) with deterministic mat
 - Order lifecycle API includes `modifyOrder(orderId, newPrice, newQuantity)`.
 - Trade capture per processed order (returns `std::vector<Trade>`).
 
-## Milestones
-Version requirements and acceptance criteria are defined in:
-- [MILESTONES.md](./MILESTONES.md)
-
 ## Architecture
 - Matching engine: [`MatchingEngine.h`](./include/MatchingEngine.h), [`MatchingEngine.cpp`](./src/MatchingEngine.cpp)
 - Order model: [`Order.h`](./include/Order.h)
 - Trade model: [`Trade.h`](./include/Trade.h)
 - Test suite: `tests/` (category-based fixtures)
+
+The engine owns two independent order books, one for bids and one for asks. The engine handles order processing, matching, cancellation, modification, trade capture, and ID-side routing; each `OrderBookSide` owns its own price levels and order nodes.
+
+![Matching engine architecture](./docs/architecture/matching-engine-architecture.png)
+
+Each order book stores price levels in `std::map<int, PriceLevel>`. Conceptually this is an ordered binary tree keyed by price. A `PriceLevel` stores aggregate level metadata and points to the head and tail of its FIFO order-node queue.
+
+![Price level tree](./docs/architecture/price-level-tree.png)
+
+Each order book also stores active orders by ID in `std::map<uint64_t, std::unique_ptr<OrderNode>>`. The map owns the nodes. The nodes link to each other as a doubly linked list, and each node points back to its `PriceLevel`.
+
+![Order linked list](./docs/architecture/order-linked-list.png)
 
 ## Build
 ```bash
