@@ -20,12 +20,12 @@ flowchart TB
 
     subgraph BuyOwned["Buy book owned state"]
         BuyLevels["priceToLevels_: map&lt;int, PriceLevel&gt;"]
-        BuyOrders["orderNodesById_: map&lt;uint64_t, unique_ptr&lt;OrderNode&gt;&gt;"]
+        BuyOrders["orderNodesById_: unordered_map&lt;uint64_t, unique_ptr&lt;OrderNode&gt;&gt;"]
     end
 
     subgraph SellOwned["Sell book owned state"]
         SellLevels["priceToLevels_: map&lt;int, PriceLevel&gt;"]
-        SellOrders["orderNodesById_: map&lt;uint64_t, unique_ptr&lt;OrderNode&gt;&gt;"]
+        SellOrders["orderNodesById_: unordered_map&lt;uint64_t, unique_ptr&lt;OrderNode&gt;&gt;"]
     end
 
     Engine --> EngineState
@@ -64,7 +64,7 @@ flowchart TB
 ## Order Nodes
 ```mermaid
 flowchart LR
-    IdMap["orderNodesById_: map&lt;uint64_t, unique_ptr&lt;OrderNode&gt;&gt;"]
+    IdMap["orderNodesById_: unordered_map&lt;uint64_t, unique_ptr&lt;OrderNode&gt;&gt;"]
     Id1["id 41"]
     Id2["id 42"]
     Id3["id 43"]

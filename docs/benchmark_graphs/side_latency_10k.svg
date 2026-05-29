@@ -5,39 +5,39 @@
 <line x1="300.0" y1="74" x2="300.0" y2="532" stroke="#e5e7eb" stroke-width="1"/>
 <text x="300.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">0.00 ns</text>
 <line x1="487.5" y1="74" x2="487.5" y2="532" stroke="#e5e7eb" stroke-width="1"/>
-<text x="487.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">32.9 ns</text>
+<text x="487.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">17.7 ns</text>
 <line x1="675.0" y1="74" x2="675.0" y2="532" stroke="#e5e7eb" stroke-width="1"/>
-<text x="675.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">65.8 ns</text>
+<text x="675.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">35.4 ns</text>
 <line x1="862.5" y1="74" x2="862.5" y2="532" stroke="#e5e7eb" stroke-width="1"/>
-<text x="862.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">98.7 ns</text>
+<text x="862.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">53.1 ns</text>
 <line x1="1050.0" y1="74" x2="1050.0" y2="532" stroke="#e5e7eb" stroke-width="1"/>
-<text x="1050.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">132 ns</text>
+<text x="1050.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">70.8 ns</text>
 
 <text x="282.0" y="113.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">addOrder: Direct side insert</text>
 <rect x="300" y="92" width="750.0" height="14" fill="#16a34a" rx="3"/>
-<text x="1058.0" y="103.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">132 ns</text>
+<text x="1058.0" y="103.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">70.8 ns</text>
 <text x="282.0" y="161.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">bestPrice: Best price read</text>
-<rect x="300" y="140" width="55.3" height="14" fill="#16a34a" rx="3"/>
-<text x="363.3" y="151.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">9.70 ns</text>
+<rect x="300" y="140" width="96.4" height="14" fill="#16a34a" rx="3"/>
+<text x="404.4" y="151.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">9.10 ns</text>
 <text x="282.0" y="209.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">getBestOrder: Best order pointer read</text>
-<rect x="300" y="188" width="75.8" height="14" fill="#16a34a" rx="3"/>
-<text x="383.8" y="199.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">13.3 ns</text>
+<rect x="300" y="188" width="135.6" height="14" fill="#16a34a" rx="3"/>
+<text x="443.6" y="199.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">12.8 ns</text>
 <text x="282.0" y="257.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">findOrder: Existing ID lookup</text>
-<rect x="300" y="236" width="313.4" height="14" fill="#16a34a" rx="3"/>
-<text x="621.4" y="247.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">55.0 ns</text>
+<rect x="300" y="236" width="391.9" height="14" fill="#16a34a" rx="3"/>
+<text x="699.9" y="247.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">37.0 ns</text>
 <text x="282.0" y="305.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">deleteOrderById: Existing ID delete</text>
-<rect x="300" y="284" width="464.5" height="14" fill="#16a34a" rx="3"/>
-<text x="772.5" y="295.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">81.5 ns</text>
+<rect x="300" y="284" width="479.9" height="14" fill="#16a34a" rx="3"/>
+<text x="787.9" y="295.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">45.3 ns</text>
 <text x="282.0" y="353.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">reduceOrderQuantity: Partial reduction</text>
-<rect x="300" y="332" width="313.4" height="14" fill="#16a34a" rx="3"/>
-<text x="621.4" y="343.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">55.0 ns</text>
+<rect x="300" y="332" width="394.1" height="14" fill="#16a34a" rx="3"/>
+<text x="702.1" y="343.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">37.2 ns</text>
 <text x="282.0" y="401.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">reduceOrderQuantity: Exact fill</text>
-<rect x="300" y="380" width="588.7" height="14" fill="#16a34a" rx="3"/>
-<text x="896.7" y="391.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">103 ns</text>
+<rect x="300" y="380" width="514.8" height="14" fill="#16a34a" rx="3"/>
+<text x="822.8" y="391.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">48.6 ns</text>
 <text x="282.0" y="449.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">modifyOrder: Same-price quantity reduction</text>
-<rect x="300" y="428" width="327.1" height="14" fill="#16a34a" rx="3"/>
-<text x="635.1" y="439.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">57.4 ns</text>
+<rect x="300" y="428" width="404.7" height="14" fill="#16a34a" rx="3"/>
+<text x="712.7" y="439.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">38.2 ns</text>
 <text x="282.0" y="497.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">modifyOrder: Price change</text>
-<rect x="300" y="476" width="397.2" height="14" fill="#16a34a" rx="3"/>
-<text x="705.2" y="487.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">69.7 ns</text>
+<rect x="300" y="476" width="503.2" height="14" fill="#16a34a" rx="3"/>
+<text x="811.2" y="487.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">47.5 ns</text>
 </svg>

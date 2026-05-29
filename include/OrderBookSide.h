@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "Order.h"
@@ -87,5 +88,5 @@ private:
     std::map<int, PriceLevel> priceToLevels_;
 
     // Order ID -> owning pointer to actual order node
-    std::map<uint64_t, std::unique_ptr<OrderNode>> orderNodesById_;
+    std::unordered_map<uint64_t, std::unique_ptr<OrderNode>> orderNodesById_;
 };

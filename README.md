@@ -37,7 +37,7 @@ Each order book stores price levels in `std::map<int, PriceLevel>`. Conceptually
 
 ![Price level tree](./docs/architecture/price-level-tree.png)
 
-Each order book also stores active orders by ID in `std::map<uint64_t, std::unique_ptr<OrderNode>>`. The map owns the nodes. The nodes link to each other as a doubly linked list, and each node points back to its `PriceLevel`.
+Each order book also stores active orders by ID in `std::unordered_map<uint64_t, std::unique_ptr<OrderNode>>`. The map owns the nodes. The nodes link to each other as a doubly linked list, and each node points back to its `PriceLevel`.
 
 ![Order linked list](./docs/architecture/order-linked-list.png)
 
@@ -94,10 +94,10 @@ The benchmark build disables hot-path console logging with `ORDER_BOOK_DISABLE_L
 ![MatchingEngine API throughput](./docs/benchmark_graphs/engine_throughput.svg)
 
 Findings:
-- `processOrder` add-only slows as the book grows because every resting order allocates a node and updates ordered maps.
+- `processOrder` add-only still pays for node allocation and price-level map updates, but order-ID indexing is now average O(1).
 - Match-heavy `processOrder` remains competitive because market orders remove resting liquidity instead of growing the book.
 - Mixed flow performs best among the engine order-processing cases because it combines passive adds with liquidity removal.
-- `cancelOrder` is relatively cheap, but still includes engine-level ID-side lookup before side-level unlinking.
+- `cancelOrder` benefits from average O(1) side-level order lookup before unlinking the node.
 - Same-price `modifyOrder` is faster than price-change modify because it preserves queue position and avoids relinking across price levels.
 
 ### OrderBookSide APIs
@@ -108,7 +108,7 @@ Findings:
 Findings:
 - Direct `OrderBookSide` calls are faster than equivalent `MatchingEngine` paths because they skip engine orchestration, trade handling, and side routing.
 - `bestPrice` and `getBestOrder` are the cheapest read paths.
-- `findOrder` is steady at this scale, but it is backed by an ordered map, so larger-scale runs are useful before changing containers.
+- `findOrder` is faster after moving `orderNodesById_` to `std::unordered_map`.
 - Partial `reduceOrderQuantity` and same-price `modifyOrder` are the fastest write-style operations because the order stays in place.
 - Exact-fill reduction is slower than partial reduction because it also removes the order node and may clean up the price level.
 - Price-change modify is slower than same-price modify because it relinks the order into another level.
