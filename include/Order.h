@@ -4,12 +4,13 @@
 enum class Side {BUY, SELL};
 enum class Type {LIMIT, MARKET};
 
+// default values for default constructor
 struct Order {
-    uint64_t id;
-    Side side;
-    Type type;
-    int price;
-    int quantity;
+    uint64_t id = 0;
+    Side side = Side::BUY;
+    Type type = Type::LIMIT;
+    int price = 0;
+    int quantity = 0;
 };
 
 struct AscendingPrice {

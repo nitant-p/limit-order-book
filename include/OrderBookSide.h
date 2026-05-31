@@ -23,6 +23,7 @@ struct OrderNode {
     OrderNode* prev = nullptr;
     OrderNode* next = nullptr;
     PriceLevel* priceLevel = nullptr;
+    size_t poolIndex = 0;
 };
 
 struct PriceLevel {

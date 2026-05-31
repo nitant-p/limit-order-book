@@ -22,6 +22,7 @@ add_library(order_book_lib
         src/Order.cpp
         src/Trade.cpp
         src/OrderBookSide.cpp
+        src/OrderNodePool.cpp
 )
 
 target_include_directories(order_book_lib
@@ -94,6 +95,7 @@ if(BUILD_TESTING)
         tests/OrderIdBehaviorTest.cpp
         tests/FormattingAndPrintTest.cpp
         tests/OrderBookSideTest.cpp
+        tests/OrderNodePoolTest.cpp
     )
 
     target_link_libraries(matching_engine_tests
