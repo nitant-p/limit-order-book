@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1180" height="570" viewBox="0 0 1180 570">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="28.0" y="34.0" font-family="Inter, Arial, sans-serif" font-size="22" fill="#111827" text-anchor="start">OrderBookSide API latency at 10k operations</text>
+<text x="28.0" y="58.0" font-family="Inter, Arial, sans-serif" font-size="13" fill="#6b7280" text-anchor="start">Lower is better. Values are mean CPU ns/op.</text>
+<line x1="300.0" y1="74" x2="300.0" y2="532" stroke="#e5e7eb" stroke-width="1"/>
+<text x="300.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">0.00 ns</text>
+<line x1="487.5" y1="74" x2="487.5" y2="532" stroke="#e5e7eb" stroke-width="1"/>
+<text x="487.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">12.2 ns</text>
+<line x1="675.0" y1="74" x2="675.0" y2="532" stroke="#e5e7eb" stroke-width="1"/>
+<text x="675.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">24.4 ns</text>
+<line x1="862.5" y1="74" x2="862.5" y2="532" stroke="#e5e7eb" stroke-width="1"/>
+<text x="862.5" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">36.7 ns</text>
+<line x1="1050.0" y1="74" x2="1050.0" y2="532" stroke="#e5e7eb" stroke-width="1"/>
+<text x="1050.0" y="66.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="middle">48.9 ns</text>
+
+<text x="282.0" y="113.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">addOrder: Direct side insert</text>
+<rect x="300" y="92" width="750.0" height="14" fill="#16a34a" rx="3"/>
+<text x="1058.0" y="103.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">48.9 ns</text>
+<text x="282.0" y="161.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">bestPrice: Best price read</text>
+<rect x="300" y="140" width="115.0" height="14" fill="#16a34a" rx="3"/>
+<text x="423.0" y="151.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">7.50 ns</text>
+<text x="282.0" y="209.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">getBestOrder: Best order pointer read</text>
+<rect x="300" y="188" width="167.2" height="14" fill="#16a34a" rx="3"/>
+<text x="475.2" y="199.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">10.9 ns</text>
+<text x="282.0" y="257.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">findOrder: Existing ID lookup</text>
+<rect x="300" y="236" width="308.3" height="14" fill="#16a34a" rx="3"/>
+<text x="616.3" y="247.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">20.1 ns</text>
+<text x="282.0" y="305.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">deleteOrderById: Existing ID delete</text>
+<rect x="300" y="284" width="475.5" height="14" fill="#16a34a" rx="3"/>
+<text x="783.5" y="295.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">31.0 ns</text>
+<text x="282.0" y="353.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">reduceOrderQuantity: Partial reduction</text>
+<rect x="300" y="332" width="334.4" height="14" fill="#16a34a" rx="3"/>
+<text x="642.4" y="343.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">21.8 ns</text>
+<text x="282.0" y="401.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">reduceOrderQuantity: Exact fill</text>
+<rect x="300" y="380" width="512.3" height="14" fill="#16a34a" rx="3"/>
+<text x="820.3" y="391.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">33.4 ns</text>
+<text x="282.0" y="449.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">modifyOrder: Same-price quantity reduction</text>
+<rect x="300" y="428" width="368.1" height="14" fill="#16a34a" rx="3"/>
+<text x="676.1" y="439.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">24.0 ns</text>
+<text x="282.0" y="497.0" font-family="Inter, Arial, sans-serif" font-size="12" fill="#111827" text-anchor="end">modifyOrder: Price change</text>
+<rect x="300" y="476" width="512.3" height="14" fill="#16a34a" rx="3"/>
+<text x="820.3" y="487.0" font-family="Inter, Arial, sans-serif" font-size="11" fill="#6b7280" text-anchor="start">33.4 ns</text>
+</svg>

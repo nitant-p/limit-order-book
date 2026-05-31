@@ -12,7 +12,7 @@ using test_helpers::levelIds;
 
 class ModifyOrderTest : public ::testing::Test {
 protected:
-    MatchingEngine engine;
+    MatchingEngine engine{1'000};
 };
 
 } // namespace

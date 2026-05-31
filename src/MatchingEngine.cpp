@@ -15,6 +15,11 @@ using namespace std;
 #define ORDER_BOOK_LOG(message) do { } while (false)
 #endif
 
+MatchingEngine::MatchingEngine(std::size_t capacity):
+    sharedOrderPool_(capacity),
+    buyBook(Side::BUY, sharedOrderPool_),
+    sellBook(Side::SELL, sharedOrderPool_) {}
+
 vector<Trade> MatchingEngine::processOrder(Side side, Type type, int price, int quantity) {
     Order newOrder {this->getAndIncrementNextOrderId(), side, type, price, quantity};
     ORDER_BOOK_LOG("Processing order:" << newOrder);

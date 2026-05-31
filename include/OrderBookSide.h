@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "Order.h"
+#include "OrderNodePool.h"
 
 struct LevelSnapshot {
     int price;
@@ -36,7 +37,7 @@ struct PriceLevel {
 
 class OrderBookSide {
 public:
-    explicit OrderBookSide(Side side);
+    explicit OrderBookSide(Side side, OrderNodePool& orderNodePool);
 
     // Basic state
     Side side() const;
@@ -84,10 +85,11 @@ private:
     OrderNode* findOrderNodeMutable(uint64_t orderId);
 
     Side side_;
+    OrderNodePool& orderNodePool_;
 
     // Price -> linked list of orders at that price
     std::map<int, PriceLevel> priceToLevels_;
 
     // Order ID -> owning pointer to actual order node
-    std::unordered_map<uint64_t, std::unique_ptr<OrderNode>> orderNodesById_;
+    std::unordered_map<uint64_t, OrderNode*> orderNodesById_;
 };

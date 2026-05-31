@@ -3,7 +3,7 @@
 #include <vector>
 
 int main() {
-    MatchingEngine engine;
+    MatchingEngine engine{1'000};
 
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 10);
     engine.processOrder(Side::SELL, Type::LIMIT, 105, 5);

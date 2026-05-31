@@ -69,7 +69,8 @@ TEST(FormattingTest, TradeStreamFormatsExecutionFields) {
 }
 
 TEST(PrintBookTest, OrderBookSidePrintBookWritesEachActiveOrder) {
-    OrderBookSide side{Side::BUY};
+    OrderNodePool pool{10};
+    OrderBookSide side{Side::BUY, pool};
     side.addOrder(1, Side::BUY, Type::LIMIT, 100, 5);
     side.addOrder(2, Side::BUY, Type::MARKET, 101, 7);
 
@@ -82,7 +83,7 @@ TEST(PrintBookTest, OrderBookSidePrintBookWritesEachActiveOrder) {
 }
 
 TEST(PrintBookTest, MatchingEnginePrintBookReportsEmptyBooksAndNoTrades) {
-    MatchingEngine engine;
+    MatchingEngine engine{10};
 
     testing::internal::CaptureStdout();
     engine.printBook();
@@ -94,7 +95,7 @@ TEST(PrintBookTest, MatchingEnginePrintBookReportsEmptyBooksAndNoTrades) {
 }
 
 TEST(PrintBookTest, MatchingEnginePrintBookReportsBooksAndTradeHistory) {
-    MatchingEngine engine;
+    MatchingEngine engine{10};
     engine.processOrder(Side::BUY, Type::LIMIT, 100, 5);   // id 1
     engine.processOrder(Side::SELL, Type::LIMIT, 105, 2);  // id 2
     engine.processOrder(Side::SELL, Type::LIMIT, 100, 3);  // id 3

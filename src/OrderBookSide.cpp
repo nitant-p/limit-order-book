@@ -10,7 +10,7 @@
 
 using namespace std;
 
-OrderBookSide::OrderBookSide(Side side):side_(side) {}
+OrderBookSide::OrderBookSide(Side side, OrderNodePool& orderNodePool):side_(side), orderNodePool_(orderNodePool) {}
 
 Side OrderBookSide::side() const {
     return this->side_;
@@ -41,27 +41,29 @@ void OrderBookSide::addOrder(uint64_t orderId, Side side, Type type, int price, 
 
     Order order(orderId, side, type, price, quantity);
     auto priceToLevelPtr = priceToLevels_.find(price);
-    auto newNode = std::make_unique<OrderNode>(OrderNode{order, nullptr, nullptr, nullptr});
-    
-    OrderNode* nodePtr = newNode.get();
-    orderNodesById_[orderId] = std::move(newNode);
+
+    // acquire from memory pool
+    auto newNodePtr = orderNodePool_.acquire(order);
+    if (newNodePtr == nullptr) return;
+
+    orderNodesById_[orderId] = newNodePtr;
 
     if (priceToLevelPtr == priceToLevels_.end()) {
         // make new level
         auto result = priceToLevels_.emplace(
             price,
-            PriceLevel{nodePtr, nodePtr, 1, static_cast<uint64_t>(nodePtr->order.quantity)}
+            PriceLevel{newNodePtr, newNodePtr, 1, static_cast<uint64_t>(newNodePtr->order.quantity)}
         );
-        nodePtr->priceLevel = &result.first->second;
+        newNodePtr->priceLevel = &result.first->second;
     } else {
         // join at end, update end
         auto end = priceToLevelPtr->second.end;
-        end->next = nodePtr;
-        nodePtr->prev = end;
-        nodePtr->priceLevel = &priceToLevelPtr->second;
-        priceToLevelPtr->second.end = nodePtr;
+        end->next = newNodePtr;
+        newNodePtr->prev = end;
+        newNodePtr->priceLevel = &priceToLevelPtr->second;
+        priceToLevelPtr->second.end = newNodePtr;
         ++priceToLevelPtr->second.orderCount;
-        priceToLevelPtr->second.totalQuantity += nodePtr->order.quantity;
+        priceToLevelPtr->second.totalQuantity += newNodePtr->order.quantity;
     }
 }
 
@@ -77,7 +79,7 @@ bool OrderBookSide::doesOrderExist(uint64_t orderId) const {
 bool OrderBookSide::deleteOrderById(uint64_t id) {
     if (!doesOrderExist(id)) return false;
 
-    auto nodePtr = orderNodesById_[id].get();
+    auto nodePtr = orderNodesById_[id];
     // get prev and next
     auto prev = nodePtr->prev;
     auto next = nodePtr->next;
@@ -96,10 +98,9 @@ bool OrderBookSide::deleteOrderById(uint64_t id) {
     // delete empty price level
     removeLevelIfEmpty(nodePtr->order.price);
 
-    // finally delete order
+    // finally delete order and release from pool
     orderNodesById_.erase(id);
-
-    return true;
+    return orderNodePool_.release(nodePtr);
 }
 
 bool OrderBookSide::doesLevelExist(int price) const {
@@ -196,7 +197,7 @@ void OrderBookSide::removeOrderIfFilled(uint64_t id) {
     if (it == orderNodesById_.end()) return;
 
     // check if order is empty and needs to be removed
-    auto nodePtr = it->second.get();
+    auto nodePtr = it->second;
     if (nodePtr->order.quantity > 0) return;
 
     deleteOrderById(nodePtr->order.id);
@@ -206,12 +207,12 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
     auto it = orderNodesById_.find(id);
     if (it == orderNodesById_.end()) return false;
 
-    Order& order = it->second.get()->order;
+    Order& order = it->second->order;
 
     if (delta > order.quantity) return false;
 
     // reduce price level data
-    PriceLevel& level = *it->second.get()->priceLevel;
+    PriceLevel& level = *it->second->priceLevel;
     level.totalQuantity -= delta;
 
     order.quantity -= delta;
@@ -226,14 +227,14 @@ bool OrderBookSide::reduceOrderQuantity(uint64_t id, int delta) {
 OrderNode* OrderBookSide::findOrderNodeMutable(uint64_t orderId) {
     auto it = orderNodesById_.find(orderId);
     if (it == orderNodesById_.end()) return nullptr;
-    return it->second.get();
+    return it->second;
 }
 
 
 const Order* OrderBookSide::findOrder(uint64_t orderId) const {
     auto it = orderNodesById_.find(orderId);
     if (it == orderNodesById_.end()) return nullptr;
-    return &it->second.get()->order;
+    return &it->second->order;
 }
 
 
@@ -339,6 +340,6 @@ bool OrderBookSide::modifyOrder(Order updatedOrder, bool loseQueuePos) {
 
 void OrderBookSide::printBook() {
     for (auto it = orderNodesById_.begin(); it != orderNodesById_.end(); ++it) {
-        cout << it->second.get()->order << endl;
+        cout << it->second->order << endl;
     }
 }

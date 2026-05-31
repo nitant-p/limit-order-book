@@ -4,6 +4,7 @@
 #include <benchmark/benchmark.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -37,6 +38,10 @@ int passiveBuyPrice(std::int64_t i) {
 // Returns non-crossing sell prices so add-only workloads build passive liquidity.
 int passiveSellPrice(std::int64_t i) {
     return kPassiveSellBase + static_cast<int>(i % 10);
+}
+
+std::size_t poolCapacityFor(std::int64_t orders) {
+    return static_cast<std::size_t>(std::max<std::int64_t>(orders, 1) + 1'000);
 }
 
 // Adds common Google Benchmark counters for domain-level sanity checks.
@@ -96,7 +101,7 @@ void BM_ProcessOrder_AddOnly(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        MatchingEngine engine;
+        MatchingEngine engine{poolCapacityFor(orders)};
         std::uint64_t iterationTrades = 0;
         state.ResumeTiming();
 
@@ -130,7 +135,7 @@ void BM_ProcessOrder_MatchHeavy(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        MatchingEngine engine;
+        MatchingEngine engine{poolCapacityFor(orders)};
         seedPassiveSellLiquidity(engine, orders);
         std::uint64_t iterationTrades = 0;
         state.ResumeTiming();
@@ -159,7 +164,7 @@ void BM_ProcessOrder_Mixed(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        MatchingEngine engine;
+        MatchingEngine engine{poolCapacityFor(orders)};
         std::uint64_t iterationTrades = 0;
         state.ResumeTiming();
 
@@ -204,7 +209,7 @@ void BM_CancelOrder_Existing(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        MatchingEngine engine;
+        MatchingEngine engine{poolCapacityFor(orders)};
         seedPassiveBuyOrders(engine, orders, 100, 10);
         std::uint64_t iterationCancels = 0;
         state.ResumeTiming();
@@ -239,7 +244,7 @@ void BM_ModifyOrder_SamePriceReduce(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        MatchingEngine engine;
+        MatchingEngine engine{poolCapacityFor(orders)};
         seedPassiveBuyOrders(engine, orders, 100, 10);
         std::uint64_t iterationModifies = 0;
         state.ResumeTiming();
@@ -274,7 +279,7 @@ void BM_ModifyOrder_PriceChange(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        MatchingEngine engine;
+        MatchingEngine engine{poolCapacityFor(orders)};
         seedPassiveBuyOrders(engine, orders, 100, 10);
         std::uint64_t iterationModifies = 0;
         state.ResumeTiming();
@@ -309,7 +314,8 @@ void BM_OrderBookSide_AddOrder(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(orders)};
+        OrderBookSide side{Side::BUY, pool};
         state.ResumeTiming();
 
         for (std::int64_t i = 0; i < orders; ++i) {
@@ -338,7 +344,8 @@ void BM_OrderBookSide_BestPrice(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(1'000)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideDepth(side, 1'000);
         state.ResumeTiming();
 
@@ -357,7 +364,8 @@ void BM_OrderBookSide_GetBestOrder(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(1'000)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideDepth(side, 1'000);
         state.ResumeTiming();
 
@@ -376,7 +384,8 @@ void BM_OrderBookSide_FindOrder(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(reads)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideBuyOrders(side, reads, 100, 10);
         state.ResumeTiming();
 
@@ -397,7 +406,8 @@ void BM_OrderBookSide_DeleteOrderById(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(orders)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideBuyOrders(side, orders, 100, 10);
         std::uint64_t iterationDeletes = 0;
         state.ResumeTiming();
@@ -432,7 +442,8 @@ void BM_OrderBookSide_ReduceQuantityPartial(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(orders)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideBuyOrders(side, orders, 100, 10);
         std::uint64_t iterationReductions = 0;
         state.ResumeTiming();
@@ -467,7 +478,8 @@ void BM_OrderBookSide_ReduceQuantityExactFill(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(orders)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideBuyOrders(side, orders, 100, 1);
         std::uint64_t iterationReductions = 0;
         state.ResumeTiming();
@@ -502,7 +514,8 @@ void BM_OrderBookSide_ModifySamePriceReduce(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(orders)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideBuyOrders(side, orders, 100, 10);
         std::uint64_t iterationModifies = 0;
         state.ResumeTiming();
@@ -544,7 +557,8 @@ void BM_OrderBookSide_ModifyPriceChange(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(orders)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideBuyOrders(side, orders, 100, 10);
         std::uint64_t iterationModifies = 0;
         state.ResumeTiming();
@@ -588,7 +602,8 @@ void BM_OrderBookSide_GetDepth(benchmark::State& state) {
 
     for (auto _ : state) {
         state.PauseTiming();
-        OrderBookSide side{Side::BUY};
+        OrderNodePool pool{poolCapacityFor(seededLevels)};
+        OrderBookSide side{Side::BUY, pool};
         seedSideDepth(side, seededLevels);
         std::uint64_t iterationChecksum = 0;
         state.ResumeTiming();

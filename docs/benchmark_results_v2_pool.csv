@@ -1,0 +1,64 @@
+layer,api,case,scale,ns_per_op,ops_per_sec,finding
+MatchingEngine,processOrder,Add-only limit orders,1000,83.1,12031180,"Resting-only inserts reuse preallocated OrderNode slots, then update price levels and average O(1) order-ID indexing."
+MatchingEngine,processOrder,Add-only limit orders,10000,79.9,12514962,"Resting-only inserts reuse preallocated OrderNode slots, then update price levels and average O(1) order-ID indexing."
+MatchingEngine,processOrder,Add-only limit orders,100000,103.3,9720611,"Resting-only inserts reuse preallocated OrderNode slots, then update price levels and average O(1) order-ID indexing."
+MatchingEngine,processOrder,Add-only limit orders,1000000,124.3,8059071,"Resting-only inserts reuse preallocated OrderNode slots, then update price levels and average O(1) order-ID indexing."
+MatchingEngine,processOrder,Match-heavy market buys,1000,80.7,12397965,Matching stays competitive because each incoming market order releases one resting node back to the shared pool.
+MatchingEngine,processOrder,Match-heavy market buys,10000,90.4,11088368,Matching stays competitive because each incoming market order releases one resting node back to the shared pool.
+MatchingEngine,processOrder,Match-heavy market buys,100000,136.5,7360078,Matching stays competitive because each incoming market order releases one resting node back to the shared pool.
+MatchingEngine,processOrder,Match-heavy market buys,1000000,235.5,4259143,Matching stays competitive because each incoming market order releases one resting node back to the shared pool.
+MatchingEngine,processOrder,Mixed limits and markets,1000,109.8,9107670,Mixed flow benefits from reuse because passive adds and liquidity removal recycle pool slots.
+MatchingEngine,processOrder,Mixed limits and markets,10000,118.3,8455740,Mixed flow benefits from reuse because passive adds and liquidity removal recycle pool slots.
+MatchingEngine,processOrder,Mixed limits and markets,100000,123.2,8114368,Mixed flow benefits from reuse because passive adds and liquidity removal recycle pool slots.
+MatchingEngine,processOrder,Mixed limits and markets,1000000,167.3,5978780,Mixed flow benefits from reuse because passive adds and liquidity removal recycle pool slots.
+MatchingEngine,cancelOrder,Existing resting orders,1000,54.6,18316661,"Engine cancel does side routing, unlinks the node, and returns its slot to the shared pool."
+MatchingEngine,cancelOrder,Existing resting orders,10000,58.8,16998553,"Engine cancel does side routing, unlinks the node, and returns its slot to the shared pool."
+MatchingEngine,cancelOrder,Existing resting orders,100000,64.0,15614999,"Engine cancel does side routing, unlinks the node, and returns its slot to the shared pool."
+MatchingEngine,cancelOrder,Existing resting orders,1000000,81.2,12312173,"Engine cancel does side routing, unlinks the node, and returns its slot to the shared pool."
+MatchingEngine,modifyOrder,Same-price quantity reduction,1000,42.4,23603349,Fast engine-level mutation because the order keeps queue position and does not touch pool ownership.
+MatchingEngine,modifyOrder,Same-price quantity reduction,10000,52.0,19246004,Fast engine-level mutation because the order keeps queue position and does not touch pool ownership.
+MatchingEngine,modifyOrder,Same-price quantity reduction,100000,60.0,16676831,Fast engine-level mutation because the order keeps queue position and does not touch pool ownership.
+MatchingEngine,modifyOrder,Same-price quantity reduction,1000000,66.2,15108448,Fast engine-level mutation because the order keeps queue position and does not touch pool ownership.
+MatchingEngine,modifyOrder,Price change,1000,55.7,17945979,"Slower than same-price reduction because the order moves between price levels, but the same node is reused."
+MatchingEngine,modifyOrder,Price change,10000,60.6,16495677,"Slower than same-price reduction because the order moves between price levels, but the same node is reused."
+MatchingEngine,modifyOrder,Price change,100000,67.8,14741154,"Slower than same-price reduction because the order moves between price levels, but the same node is reused."
+MatchingEngine,modifyOrder,Price change,1000000,74.1,13490158,"Slower than same-price reduction because the order moves between price levels, but the same node is reused."
+OrderBookSide,addOrder,Direct side insert,1000,41.8,23923803,Direct insertion skips engine orchestration and acquires nodes from the preallocated pool.
+OrderBookSide,addOrder,Direct side insert,10000,48.9,20456726,Direct insertion skips engine orchestration and acquires nodes from the preallocated pool.
+OrderBookSide,addOrder,Direct side insert,100000,42.9,23311714,Direct insertion skips engine orchestration and acquires nodes from the preallocated pool.
+OrderBookSide,addOrder,Direct side insert,1000000,44.8,22308866,Direct insertion skips engine orchestration and acquires nodes from the preallocated pool.
+OrderBookSide,bestPrice,Best price read,1000,42.6,23476070,Cheap read path using the current best-price lookup; pooling does not materially affect it.
+OrderBookSide,bestPrice,Best price read,10000,7.5,132667116,Cheap read path using the current best-price lookup; pooling does not materially affect it.
+OrderBookSide,bestPrice,Best price read,100000,4.1,245901700,Cheap read path using the current best-price lookup; pooling does not materially affect it.
+OrderBookSide,bestPrice,Best price read,1000000,3.5,287549823,Cheap read path using the current best-price lookup; pooling does not materially affect it.
+OrderBookSide,getBestOrder,Best order pointer read,1000,46.3,21590062,Cheap read path that returns the head order at the best level; pooling does not materially affect it.
+OrderBookSide,getBestOrder,Best order pointer read,10000,10.9,91389829,Cheap read path that returns the head order at the best level; pooling does not materially affect it.
+OrderBookSide,getBestOrder,Best order pointer read,100000,7.3,136280470,Cheap read path that returns the head order at the best level; pooling does not materially affect it.
+OrderBookSide,getBestOrder,Best order pointer read,1000000,7.0,142937941,Cheap read path that returns the head order at the best level; pooling does not materially affect it.
+OrderBookSide,findOrder,Existing ID lookup,1000,18.2,54835334,Average O(1) ID lookup returns a borrowed OrderNode pointer owned by the pool.
+OrderBookSide,findOrder,Existing ID lookup,10000,20.1,49735300,Average O(1) ID lookup returns a borrowed OrderNode pointer owned by the pool.
+OrderBookSide,findOrder,Existing ID lookup,100000,18.2,54853762,Average O(1) ID lookup returns a borrowed OrderNode pointer owned by the pool.
+OrderBookSide,findOrder,Existing ID lookup,1000000,19.7,50873106,Average O(1) ID lookup returns a borrowed OrderNode pointer owned by the pool.
+OrderBookSide,deleteOrderById,Existing ID delete,1000,29.2,34285441,Fast average O(1) ID lookup followed by O(1) unlinking and returning the node to the pool.
+OrderBookSide,deleteOrderById,Existing ID delete,10000,31.0,32230083,Fast average O(1) ID lookup followed by O(1) unlinking and returning the node to the pool.
+OrderBookSide,deleteOrderById,Existing ID delete,100000,34.0,29402943,Fast average O(1) ID lookup followed by O(1) unlinking and returning the node to the pool.
+OrderBookSide,deleteOrderById,Existing ID delete,1000000,40.9,24474000,Fast average O(1) ID lookup followed by O(1) unlinking and returning the node to the pool.
+OrderBookSide,reduceOrderQuantity,Partial reduction,1000,19.2,52095350,Fast path because the order remains resting and no pool release is needed.
+OrderBookSide,reduceOrderQuantity,Partial reduction,10000,21.8,45916838,Fast path because the order remains resting and no pool release is needed.
+OrderBookSide,reduceOrderQuantity,Partial reduction,100000,19.3,51876217,Fast path because the order remains resting and no pool release is needed.
+OrderBookSide,reduceOrderQuantity,Partial reduction,1000000,19.8,50461075,Fast path because the order remains resting and no pool release is needed.
+OrderBookSide,reduceOrderQuantity,Exact fill,1000,30.3,32957133,Exact fill unlinks the order and returns the node slot to the pool instead of destroying it.
+OrderBookSide,reduceOrderQuantity,Exact fill,10000,33.4,29909457,Exact fill unlinks the order and returns the node slot to the pool instead of destroying it.
+OrderBookSide,reduceOrderQuantity,Exact fill,100000,35.8,27908210,Exact fill unlinks the order and returns the node slot to the pool instead of destroying it.
+OrderBookSide,reduceOrderQuantity,Exact fill,1000000,42.9,23331586,Exact fill unlinks the order and returns the node slot to the pool instead of destroying it.
+OrderBookSide,modifyOrder,Same-price quantity reduction,1000,19.1,52446828,Close to partial quantity reduction because queue position and node identity are preserved.
+OrderBookSide,modifyOrder,Same-price quantity reduction,10000,24.0,41802785,Close to partial quantity reduction because queue position and node identity are preserved.
+OrderBookSide,modifyOrder,Same-price quantity reduction,100000,19.4,51577567,Close to partial quantity reduction because queue position and node identity are preserved.
+OrderBookSide,modifyOrder,Same-price quantity reduction,1000000,20.9,47923352,Close to partial quantity reduction because queue position and node identity are preserved.
+OrderBookSide,modifyOrder,Price change,1000,31.9,31303056,More expensive than same-price modification because the node is relinked into another price level.
+OrderBookSide,modifyOrder,Price change,10000,33.4,29931948,More expensive than same-price modification because the node is relinked into another price level.
+OrderBookSide,modifyOrder,Price change,100000,28.8,34774622,More expensive than same-price modification because the node is relinked into another price level.
+OrderBookSide,modifyOrder,Price change,1000000,29.4,33989979,More expensive than same-price modification because the node is relinked into another price level.
+OrderBookSide,getDepth,Depth 10,1000,224.9,4445616,Depth reads are mostly unaffected by pooling because they walk levels and materialize snapshots.
+OrderBookSide,getDepth,Depth 100,1000,519.0,1926800,Depth reads are mostly unaffected by pooling because they walk levels and materialize snapshots.
+OrderBookSide,getDepth,Depth 1000,1000,3784.7,264261,Depth reads are mostly unaffected by pooling because they walk levels and materialize snapshots.

@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
-"""Generate SVG benchmark charts from the V1 benchmark CSV."""
+"""Generate SVG benchmark charts from a benchmark CSV."""
 
 from __future__ import annotations
 
 import csv
 import html
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DATA_FILE = ROOT / "docs" / "benchmark_results_v1.csv"
-OUT_DIR = ROOT / "docs" / "benchmark_graphs"
+DEFAULT_DATA_FILE = ROOT / "docs" / "benchmark_results_v1.csv"
+DEFAULT_OUT_DIR = ROOT / "docs" / "benchmark_graphs"
 
 COLORS = ["#2563eb", "#f97316", "#16a34a", "#7c3aed"]
 TEXT = "#111827"
@@ -18,8 +19,8 @@ MUTED = "#6b7280"
 GRID = "#e5e7eb"
 
 
-def load_rows() -> list[dict[str, str]]:
-    with DATA_FILE.open(newline="") as f:
+def load_rows(data_file: Path) -> list[dict[str, str]]:
+    with data_file.open(newline="") as f:
         return list(csv.DictReader(f))
 
 
@@ -126,8 +127,11 @@ def by_case(rows: list[dict[str, str]], metric: str, scale: str) -> tuple[list[s
 
 
 def main() -> None:
-    rows = load_rows()
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    data_file = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_DATA_FILE
+    out_dir = Path(sys.argv[2]).resolve() if len(sys.argv) > 2 else DEFAULT_OUT_DIR
+
+    rows = load_rows(data_file)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     engine_rows = rows_for(rows, "MatchingEngine")
     engine_labels_1k, engine_latency_1k = by_case(engine_rows, "ns_per_op", "1000")
@@ -136,7 +140,7 @@ def main() -> None:
     _, engine_ops_10k = by_case(engine_rows, "ops_per_sec", "10000")
 
     grouped_bar_chart(
-        OUT_DIR / "engine_latency.svg",
+        out_dir / "engine_latency.svg",
         "MatchingEngine API latency",
         "Lower is better. Values are mean CPU ns/op.",
         engine_labels_1k,
@@ -144,7 +148,7 @@ def main() -> None:
         " ns",
     )
     grouped_bar_chart(
-        OUT_DIR / "engine_throughput.svg",
+        out_dir / "engine_throughput.svg",
         "MatchingEngine API throughput",
         "Higher is better. Values are equivalent million operations per second.",
         engine_labels_1k,
@@ -157,7 +161,7 @@ def main() -> None:
     side_latency = [float(row["ns_per_op"]) for row in side_rows_10k]
     side_ops_m = [float(row["ops_per_sec"]) / 1_000_000 for row in side_rows_10k]
     one_series_bar_chart(
-        OUT_DIR / "side_latency_10k.svg",
+        out_dir / "side_latency_10k.svg",
         "OrderBookSide API latency at 10k operations",
         "Lower is better. Values are mean CPU ns/op.",
         side_labels,
@@ -166,7 +170,7 @@ def main() -> None:
         "#16a34a",
     )
     one_series_bar_chart(
-        OUT_DIR / "side_throughput_10k.svg",
+        out_dir / "side_throughput_10k.svg",
         "OrderBookSide API throughput at 10k operations",
         "Higher is better. Values are equivalent million operations per second.",
         side_labels,
@@ -180,7 +184,7 @@ def main() -> None:
     depth_latency = [float(row["ns_per_op"]) for row in depth_rows]
     depth_ops_k = [float(row["ops_per_sec"]) / 1_000 for row in depth_rows]
     one_series_bar_chart(
-        OUT_DIR / "depth_latency.svg",
+        out_dir / "depth_latency.svg",
         "OrderBookSide::getDepth latency",
         "Lower is better. Values are mean CPU ns/read.",
         depth_labels,
@@ -189,7 +193,7 @@ def main() -> None:
         "#f97316",
     )
     one_series_bar_chart(
-        OUT_DIR / "depth_throughput.svg",
+        out_dir / "depth_throughput.svg",
         "OrderBookSide::getDepth read throughput",
         "Higher is better. Values are thousand reads per second.",
         depth_labels,

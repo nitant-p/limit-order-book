@@ -11,7 +11,7 @@ using test_helpers::levelIds;
 
 class OrderIdBehaviorTest : public ::testing::Test {
 protected:
-    MatchingEngine engine;
+    MatchingEngine engine{1'000};
 };
 
 } // namespace

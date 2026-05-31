@@ -29,7 +29,7 @@ This project implements a central limit order book (CLOB) with deterministic mat
 - Trade model: [`Trade.h`](./include/Trade.h)
 - Test suite: `tests/` (category-based fixtures)
 
-The engine owns two independent order books, one for bids and one for asks. The engine handles order processing, matching, cancellation, modification, trade capture, and ID-side routing; each `OrderBookSide` owns its own price levels and order nodes.
+The engine owns two independent order books, one for bids and one for asks. The engine handles order processing, matching, cancellation, modification, trade capture, and ID-side routing; each `OrderBookSide` owns its own price levels and borrows active order nodes from a shared `OrderNodePool`.
 
 ![Matching engine architecture](./docs/architecture/matching-engine-architecture.png)
 
@@ -37,7 +37,7 @@ Each order book stores price levels in `std::map<int, PriceLevel>`. Conceptually
 
 ![Price level tree](./docs/architecture/price-level-tree.png)
 
-Each order book also stores active orders by ID in `std::unordered_map<uint64_t, std::unique_ptr<OrderNode>>`. The map owns the nodes. The nodes link to each other as a doubly linked list, and each node points back to its `PriceLevel`.
+Each order book also stores active orders by ID in `std::unordered_map<uint64_t, OrderNode*>`. The map indexes borrowed nodes; `OrderNodePool` owns the reusable node storage. The nodes link to each other as a doubly linked list, and each node points back to its `PriceLevel`.
 
 ![Order linked list](./docs/architecture/order-linked-list.png)
 
@@ -76,6 +76,12 @@ This section is the V1 benchmark baseline. Charts are generated from [`docs/benc
 
 ```bash
 python3 scripts/generate_benchmark_graphs.py
+```
+
+To generate charts for another benchmark CSV:
+
+```bash
+python3 scripts/generate_benchmark_graphs.py docs/benchmark_results_v2_pool.csv docs/benchmark_graphs_v2_pool
 ```
 
 Build and run the Google Benchmark executable:
@@ -123,6 +129,41 @@ Findings:
 - `getDepth(100)` scales up visibly because it walks more levels and writes more `LevelSnapshot` entries.
 - `getDepth(1000)` is the slowest measured side API because it materializes a large snapshot vector.
 - Depth benchmarks should be compared separately from order mutation benchmarks because they are read-heavy and allocation-sensitive.
+
+## V2 Pool Benchmark Results
+This section captures the pooled-node implementation. New results are in [`docs/benchmark_results_v2_pool.csv`](./docs/benchmark_results_v2_pool.csv), with raw Google Benchmark JSON in [`docs/benchmark_results_v2_pool_raw.json`](./docs/benchmark_results_v2_pool_raw.json). Charts are generated into [`docs/benchmark_graphs_v2_pool/`](./docs/benchmark_graphs_v2_pool/).
+
+The pooled run used the same benchmark cases and capacities as the current benchmark executable: 1k, 10k, 100k, and 1M operations where defined, plus the existing depth snapshot sizes.
+
+### Pooled MatchingEngine APIs
+![Pooled MatchingEngine API latency](./docs/benchmark_graphs_v2_pool/engine_latency.svg)
+
+![Pooled MatchingEngine API throughput](./docs/benchmark_graphs_v2_pool/engine_throughput.svg)
+
+### Pooled OrderBookSide APIs
+![Pooled OrderBookSide API latency](./docs/benchmark_graphs_v2_pool/side_latency_10k.svg)
+
+![Pooled OrderBookSide API throughput](./docs/benchmark_graphs_v2_pool/side_throughput_10k.svg)
+
+### Pooled Depth Snapshots
+![Pooled OrderBookSide getDepth latency](./docs/benchmark_graphs_v2_pool/depth_latency.svg)
+
+![Pooled OrderBookSide getDepth throughput](./docs/benchmark_graphs_v2_pool/depth_throughput.svg)
+
+### Pooling Impact
+Compared with the V1 CSV, the pooled implementation improves all common measured rows. Across the 33 directly comparable V1 rows, mean latency improved by about 29%.
+
+Selected 10k comparisons:
+
+| Case | V1 ns/op | Pooled ns/op | Improvement |
+| --- | ---: | ---: | ---: |
+| MatchingEngine add-only `processOrder` | 126.1 | 79.9 | 36.6% |
+| MatchingEngine `cancelOrder` | 92.4 | 58.8 | 36.4% |
+| OrderBookSide `addOrder` | 70.8 | 48.9 | 30.9% |
+| OrderBookSide exact-fill reduction | 48.6 | 33.4 | 31.3% |
+| OrderBookSide same-price modify | 38.2 | 24.0 | 37.2% |
+
+The main benefit is that hot order lifecycle paths no longer repeatedly allocate and destroy individual `OrderNode` objects. Inserts acquire a preallocated slot, cancels and exact fills return the slot, and modifications keep the same node while relinking when needed. Read-heavy paths such as `bestPrice`, `getBestOrder`, and `getDepth` see smaller or indirect improvements because they are dominated by map traversal, pointer access, or snapshot construction rather than node allocation.
 
 ## CI/CD
 - CI workflow: [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)

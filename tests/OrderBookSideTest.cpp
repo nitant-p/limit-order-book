@@ -16,12 +16,14 @@ using test_helpers::levelIds;
 
 class OrderBookSideBuyTest : public ::testing::Test {
 protected:
-    OrderBookSide side{Side::BUY};
+    OrderNodePool pool{1'000};
+    OrderBookSide side{Side::BUY, pool};
 };
 
 class OrderBookSideSellTest : public ::testing::Test {
 protected:
-    OrderBookSide side{Side::SELL};
+    OrderNodePool pool{1'000};
+    OrderBookSide side{Side::SELL, pool};
 };
 
 } // namespace

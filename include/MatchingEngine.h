@@ -10,6 +10,8 @@
 
 class MatchingEngine {
 public:
+    explicit MatchingEngine(std::size_t capacity);
+
     std::vector<Trade> processOrder(Side side, Type type, int price, int quantity);
     void printBook();
     const OrderBookSide& getBuyBook() const;
@@ -18,10 +20,11 @@ public:
     bool modifyOrder(uint64_t orderId, int newPrice, int newQuantity);
     
 private:
+    OrderNodePool sharedOrderPool_;
     uint64_t nextOrderId {1};
 
-    OrderBookSide buyBook{Side::BUY};
-    OrderBookSide sellBook{Side::SELL};
+    OrderBookSide buyBook;
+    OrderBookSide sellBook;
     std::vector<Trade> tradeHistory;
     
     std::unordered_map<uint64_t, Side> orderIdSide;
